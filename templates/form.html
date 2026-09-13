@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#4F2C68">
+<title>ALT — {{ 'Editar cadastro' if cid else 'Nova atualização' }}</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="brand-header">
+  <div class="brand-content">
+    <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+    <div class="brand-info">
+      <strong>ALT Gestão de Condomínios</strong>
+      <span>Ficha cadastral e atualização de informações</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
+  </div>
+</header>
+
+<div class="progress-wrap" aria-label="Progresso do formulário">
+  <div class="progress-inner">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text" id="progressText">0% preenchido</div>
+  </div>
+</div>
+
+<main>
+  <div class="page-head">
+    <div>
+      <span class="page-kicker">Cadastro condominial</span>
+      <h1>{{ 'Editar cadastro' if cid else 'Nova atualização' }}</h1>
+      <p>Preencha os dados abaixo. Os campos condicionais aparecem conforme as respostas.</p>
+    </div>
+  </div>
+
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}
+      <div class="flash {{cat}}" role="alert">{{msg}}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="post" action="{{url_for('salvar')}}" id="condoForm" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="id" value="{{cid or ''}}">
+
+    <div class="notice">
+      <strong>Orientação:</strong>&nbsp; revise os dados antes de salvar. O progresso é calculado automaticamente.
+    </div>
+
+    {% if d.get('alert_status') %}
+      {% set alerts = d['alert_status']['issues'] %}
+      {% if alerts %}
+      <div class="alert-panel">
+        <strong>Alertas do condomínio</strong>
+        <div class="alert-list">
+          {% for issue in alerts %}
+            <span class="issue-pill {{ issue['status'] }}">{{ issue['label'] }} · {{ issue['date'] }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    {% macro text(name,label,type='text',required=false,attrs='') %}
+    {% set alert_labels = d.get('alert_status', {}).get('issues', []) %}
+    {% set alert_map = {} %}
+    {% for issue in alert_labels %}
+      {% set _ = alert_map.__setitem__(issue['label'], issue['status']) %}
+    {% endfor %}
+    <div class="field {% if alert_map.get(label, '') in ['red', 'yellow'] %}field-alert field-alert-{{ alert_map.get(label, '') }}{% endif %}">
+      <label for="{{name}}">{{label}}{% if required %} <span aria-hidden="true">*</span>{% endif %}</label>
+      <input name="{{name}}" id="{{name}}" type="{{type}}"
+        value="{{d.get(name,'') if d.get(name,'') is not mapping else ''}}"
+        {% if required %}required{% endif %} {{attrs|safe}}>
+    </div>
+    {% endmacro %}
+
+    {% macro yn(name,label) %}
+    <div class="q">
+      <label>{{label}}</label>
+      <div class="rad" role="radiogroup" aria-label="{{label}}">
+        <label><input type="radio" name="{{name}}" value="Sim" {% if d.get(name)=='Sim' %}checked{% endif %}> Sim</label>
+        <label><input type="radio" name="{{name}}" value="Não" {% if d.get(name)=='Não' %}checked{% endif %}> Não</label>
+      </div>
+    </div>
+    {% endmacro %}
+
+    <section class="card" id="sec1">
+      <h2><span class="section-number">01</span> Dados do condomínio</h2>
+      <div class="grid">
+        {{text('nome','Nome completo do condomínio','text',true,'autocomplete="organization" maxlength="300"')}}
+        {{text('cnpj','CNPJ','text',false,'inputmode="numeric" maxlength="18"')}}
+        {{text('unidades','Quantidade de unidades','number',false,'min="1" max="100000" step="1" inputmode="numeric"')}}
+      </div>
+      <h3>Endereço</h3>
+      <div class="grid address-grid">
+        <div class="field full cep-field-wrap">
+          <label for="endereco_cep">CEP</label>
+          <div class="inline-search">
+            <input name="endereco_cep" id="endereco_cep" type="text" value="{{d.get('endereco', {}).get('cep','') if d.get('endereco') is mapping else ''}}" inputmode="numeric" maxlength="9" autocomplete="postal-code" placeholder="Digite o CEP">
+            <button type="button" class="btn ghost small" id="buscarEnderecoBtn">Buscar endereço</button>
+          </div>
+          <div class="field-help" id="cepStatus" aria-live="polite">Informe o CEP para preencher o endereço automaticamente.</div>
+        </div>
+        {{text('endereco_rua','Rua','text',false,'maxlength="200" autocomplete="street-address"')}}
+        {{text('endereco_numero','Número','text',false,'maxlength="20"')}}
+        {{text('endereco_complemento','Complemento','text',false,'maxlength="100"')}}
+        {{text('endereco_bairro','Bairro','text',false,'maxlength="120"')}}
+        {{text('endereco_cidade','Cidade','text',false,'maxlength="120" autocomplete="address-level2"')}}
+        {{text('endereco_estado','Estado','text',false,'maxlength="2" style="text-transform:uppercase"')}}
+      </div>
+    </section>
+
+    <section class="card" id="sec2">
+      <h2><span class="section-number">02</span> Síndico</h2>
+      <div class="q">
+        <label>Tipo de síndico</label>
+        <div class="rad">
+          <label><input type="radio" name="sindicoTipo" value="Morador" {% if d.get('sindicoTipo')=='Morador' %}checked{% endif %}> Morador</label>
+          <label><input type="radio" name="sindicoTipo" value="Profissional" {% if d.get('sindicoTipo')=='Profissional' %}checked{% endif %}> Profissional</label>
+        </div>
+      </div>
+      <div id="sindicoMorador" class="conditional">
+        <div class="grid">
+          {{text('sindico','Nome completo','text',false,'maxlength="300" autocomplete="name"')}}
+          {{text('cpfSindico','CPF','text',false,'inputmode="numeric" maxlength="14"')}}
+          {{text('unSindico','Unidade/Apartamento','text',false,'maxlength="50"')}}
+          {{text('telSindico','Telefone','tel',false,'inputmode="tel" maxlength="20"')}}
+          {{text('emailSindico','E-mail','email',false,'maxlength="200" autocomplete="email"')}}
+        </div>
+      </div>
+      <div id="sindicoProfissional" class="conditional">
+        <div class="grid">
+          {{text('empresaSindico','Nome da empresa','text',false,'maxlength="300"')}}
+          {{text('cnpjEmpresaSindico','CNPJ da empresa','text',false,'inputmode="numeric" maxlength="18"')}}
+          {{text('responsavelSindico','Síndico responsável','text',false,'maxlength="300"')}}
+          {{text('telResponsavelSindico','Telefone do responsável','tel',false,'inputmode="tel" maxlength="20"')}}
+        </div>
+      </div>
+      <div class="grid mandate-grid">
+        {{text('ataEleicao','Data da ata de eleição','date')}}
+        {{text('ultAGO','Data da última AGO','date')}}
+        <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Mandato do síndico')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Mandato do síndico')|list|first).status }}{% endif %}">
+          <label for="fimMandato">Vencimento do mandato</label>
+          <input name="fimMandato" id="fimMandato" type="date" value="{{d.get('fimMandato','')}}">
+          <div data-status-for="fimMandato" class="date-status" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="sec3">
+      <h2><span class="section-number">03</span> Conselho fiscal</h2>
+      {{yn('conselho','Possui Conselho Fiscal?')}}
+      <div id="conselhoBox" class="conditional">
+        <div class="grid">
+          <div>{{text('qtdConselheiros','Quantidade de conselheiros','number',false,'min="1" max="20" step="1" inputmode="numeric"')}}</div>
+        </div>
+        <div id="conselhoList"></div>
+      </div>
+    </section>
+
+    <section class="card" id="sec4">
+      <h2><span class="section-number">04</span> Dados bancários</h2>
+      <div class="grid">
+        {{text('banco','Banco','text',false,'maxlength="120"')}}
+        {{text('agencia','Agência','text',false,'maxlength="30"')}}
+        {{text('conta','Conta bancária','text',false,'maxlength="50"')}}
+      </div>
+    </section>
+
+    <section class="card" id="sec5">
+      <h2><span class="section-number">05</span> Documentação</h2>
+      <div class="grid">
+        {{yn('conv','Possui Convenção?')}}
+        <div id="convFisBox" class="conditional">{{yn('convFis','Se sim, está impressa na pasta física?')}}</div>
+        {{yn('reg','Possui Regimento Interno?')}}
+        <div id="regFisBox" class="conditional">{{yn('regFis','Se sim, está impresso na pasta física?')}}</div>
+        {{yn('admFis','Contrato da administração está impresso na pasta física?')}}
+      </div>
+    </section>
+
+    <section class="card" id="sec6">
+      <h2><span class="section-number">06</span> PPCI e segurança contra incêndio</h2>
+      {{yn('ppci','Possui PPCI?')}}
+      <div id="ppciBox" class="conditional">
+        <div class="grid">
+          <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','PPCI')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','PPCI')|list|first).status }}{% endif %}">
+            <label for="validPpci">Validade do PPCI</label>
+            <input name="validPpci" id="validPpci" type="date" value="{{d.get('validPpci','')}}">
+            <div data-status-for="validPpci" class="date-status" aria-live="polite"></div>
+          </div>
+          {{yn('ppciFis','PPCI está impresso na pasta física?')}}
+        </div>
+      </div>
+      {{yn('ext','Extintores em situação regular?')}}
+      <div id="extBox" class="conditional">
+        <div class="grid">
+          <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Recarga de extintor')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Recarga de extintor')|list|first).status }}{% endif %}">
+            <label for="recarga">Data da última recarga</label>
+            <input name="recarga" id="recarga" type="date" value="{{d.get('recarga','')}}">
+            <div data-status-for="recarga" class="date-status" aria-live="polite"></div>
+          </div>
+          {{yn('extFis','Documento dos extintores está impresso?')}}
+        </div>
+      </div>
+      {{yn('brig','Possui brigadistas?')}}
+      <div id="brigBox" class="conditional">
+        <div class="grid"><div>{{text('qtdBrig','Quantidade de brigadistas','number',false,'min="1" max="100" step="1" inputmode="numeric"')}}</div></div>
+        <div id="brigList"></div>
+      </div>
+    </section>
+
+    <section class="card" id="sec7">
+      <h2><span class="section-number">07</span> Limpeza da caixa d'água e dedetização</h2>
+      <div class="grid">
+        <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto',"Limpeza da caixa d'água")|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto',"Limpeza da caixa d'água")|list|first).status }}{% endif %}">
+          <label for="cxData">Data da última limpeza da caixa d'água</label>
+          <input name="cxData" id="cxData" type="date" value="{{d.get('cxData','')}}">
+          <div data-status-for="cxData" class="date-status" aria-live="polite"></div>
+        </div>
+        {{yn('cxFis','Comprovante da limpeza está impresso?')}}
+        <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Dedetização')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Dedetização')|list|first).status }}{% endif %}">
+          <label for="dedData">Data da última dedetização</label>
+          <input name="dedData" id="dedData" type="date" value="{{d.get('dedData','')}}">
+          <div data-status-for="dedData" class="date-status" aria-live="polite"></div>
+        </div>
+        {{yn('dedFis','Comprovante da dedetização está impresso?')}}
+      </div>
+    </section>
+
+    <section class="card" id="sec8">
+      <h2><span class="section-number">08</span> Seguro predial</h2>
+      {{yn('seg','Possui seguro predial?')}}
+      <div id="segBox" class="conditional">
+        <div class="grid">
+          {{text('segEmpresa','Empresa/Seguradora','text',false,'maxlength="200"')}}
+          {{text('corretorResponsavelSeg','Corretor responsável','text',false,'maxlength="200"')}}
+          {{text('contatoCorretorSeg','Contato do corretor responsável','text',false,'maxlength="100"')}}
+          <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Seguro predial')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Seguro predial')|list|first).status }}{% endif %}">
+            <label for="segData">Data da última contratação/renovação</label>
+            <input name="segData" id="segData" type="date" value="{{d.get('segData','')}}">
+            <div data-status-for="segData" class="date-status" aria-live="polite"></div>
+          </div>
+          {{yn('segFis','Apólice está impressa na pasta física?')}}
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="sec9">
+      <h2><span class="section-number">09</span> Contas de consumo</h2>
+      <div class="grid">
+        {{text('luz','Código da conta de luz','text',false,'maxlength="100"')}}
+        {{text('agua','Código da conta de água','text',false,'maxlength="100"')}}
+      </div>
+      <h3>Gás</h3>
+      {{yn('gas','Possui gás?')}}
+      <div id="gasBox" class="conditional">
+        <div class="grid">
+          <div>
+            <label for="gasTipo">Quem realiza a leitura/gestão do gás?</label>
+            <select name="gasTipo" id="gasTipo">
+              <option value="">Selecione</option>
+              <option value="Ultragás" {% if d.get('gasTipo')=='Ultragás' %}selected{% endif %}>Ultragás</option>
+              <option value="Administração" {% if d.get('gasTipo')=='Administração' %}selected{% endif %}>Administração</option>
+              <option value="Outra" {% if d.get('gasTipo')=='Outra' %}selected{% endif %}>Outra</option>
+            </select>
+          </div>
+        </div>
+        <div id="ultraGasFields" class="conditional"><div class="grid">{{text('codCad','Código de cadastramento','text',false,'maxlength="100"')}}</div></div>
+        <div id="outraGasFields" class="conditional"><div class="grid">{{text('empresaGas','Qual empresa?','text',false,'maxlength="200"')}}{{text('codigoGasOutra','Código para cadastro','text',false,'maxlength="100"')}}</div></div>
+      </div>
+    </section>
+
+    <section class="card" id="sec10">
+      <h2><span class="section-number">10</span> Limpeza do condomínio</h2>
+      <div class="grid">
+        {{text('quemLimpeza','Quem realiza a limpeza?')}}
+        {{text('empresaLimpeza','Empresa')}}
+        {{text('freqLimpeza','Quantidade de vezes por semana')}}
+        {{text('cargaLimpeza','Carga horária')}}
+        {{yn('limpFis','Contrato de limpeza está impresso?')}}
+      </div>
+    </section>
+
+    <section class="card" id="sec11">
+      <h2><span class="section-number">11</span> Segurança</h2>
+      {{yn('seguranca','Possui segurança?')}}
+      <div id="segurancaBox" class="conditional">
+        <div class="grid">
+          {{text('empresaSeg','Empresa responsável')}}
+          {{yn('segFis2','Contrato de segurança está impresso?')}}
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="sec12">
+      <h2><span class="section-number">12</span> Jurídico / Cobrança</h2>
+      {{yn('juridico','Possui advogado/escritório jurídico para cobranças?')}}
+      <div id="juridicoBox" class="conditional">
+        <div class="grid">
+          {{text('nomeJuridico','Nome do advogado/escritório')}}
+          {{text('percCobranca','Percentual aplicado nas cobranças')}}
+          {{yn('jurFis','Contrato com o jurídico está impresso?')}}
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="sec13">
+      <h2><span class="section-number">13</span> Mercadinho</h2>
+      {{yn('mercadinho','Possui mercadinho?')}}
+      <div id="mercBox" class="conditional">
+        <div class="grid">
+          {{text('nomeMerc','Nome do mercadinho')}}
+          {{text('respMerc','Nome do responsável')}}
+          {{text('contatoMerc','Contato do responsável')}}
+          {{text('repasseMerc','Repasse para o condomínio (R$)','text',false,'inputmode="decimal"')}}
+          {{text('periodoMerc','Periodicidade do repasse')}}
+          {{text('dataMerc','Data/período do repasse')}}
+          {{yn('mercFis','Contrato com o mercadinho está impresso?')}}
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="sec14">
+      <h2><span class="section-number">14</span> Observações</h2>
+      <label for="obs">Informações complementares</label>
+      <textarea name="obs" id="obs" maxlength="5000" placeholder="Digite observações relevantes...">{{d.get('obs','')}}</textarea>
+      <span class="field-help">Máximo de 5.000 caracteres.</span>
+    </section>
+
+    <div class="save-area">
+      <div class="bottom">
+        <div class="save-state" id="saveState" aria-live="polite">Pronto para preencher</div>
+        <a class="btn ghost" href="{{url_for('index')}}">Voltar</a>
+        <button class="btn success" type="submit" id="saveButton">Salvar atualização</button>
+      </div>
+    </div>
+  </form>
+</main>
+
+<script>
+"use strict";
+
+const old = {{d|tojson}};
+let consState = Array.isArray(old.conselheiros)
+  ? old.conselheiros.map(x => ({nome:x?.nome||'', unidade:x?.unidade||''})) : [];
+let brigState = Array.isArray(old.brigadistas)
+  ? old.brigadistas.map(x => ({nome:x?.nome||'', unidade:x?.unidade||''})) : [];
+
+const form = document.getElementById("condoForm");
+const saveState = document.getElementById("saveState");
+const saveButton = document.getElementById("saveButton");
+
+function radioValue(name){
+  return document.querySelector('input[name="' + name + '"]:checked')?.value || "";
+}
+
+function toggle(id, show){
+  document.getElementById(id)?.classList.toggle("hide", !show);
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[m]));
+}
+
+function currentRows(id){
+  return [...document.querySelectorAll("#" + id + " .dynamic-row")].map(r => ({
+    nome:r.querySelector('[data-field="nome"]')?.value || "",
+    unidade:r.querySelector('[data-field="unidade"]')?.value || ""
+  }));
+}
+
+function renderConselho(){
+  const box = document.getElementById("conselhoList");
+  if(!box) return;
+  const current = currentRows("conselhoList");
+  if(current.length) consState = current;
+
+  const q = Math.max(0, Math.min(20,
+    parseInt(document.getElementById("qtdConselheiros")?.value || "0",10) || 0
+  ));
+
+  box.innerHTML = "";
+  for(let i=0;i<q;i++){
+    const x = consState[i] || {nome:"",unidade:""};
+    box.insertAdjacentHTML("beforeend", `
+      <div class="grid dynamic-row subrow">
+        <div>
+          <label>Conselheiro ${i+1} — Nome completo</label>
+          <input data-field="nome" name="cons${i}nome" value="${esc(x.nome)}" maxlength="300">
+        </div>
+        <div>
+          <label>Conselheiro ${i+1} — Unidade/Apartamento</label>
+          <input data-field="unidade" name="cons${i}unidade" value="${esc(x.unidade)}" maxlength="100">
+        </div>
+      </div>
+    `);
+  }
+}
+
+function renderBrig(){
+  const box = document.getElementById("brigList");
+  if(!box) return;
+  const current = currentRows("brigList");
+  if(current.length) brigState = current;
+
+  const q = Math.max(0, Math.min(100,
+    parseInt(document.getElementById("qtdBrig")?.value || "0",10) || 0
+  ));
+
+  box.innerHTML = "";
+  for(let i=0;i<q;i++){
+    const x = brigState[i] || {nome:"",unidade:""};
+    box.insertAdjacentHTML("beforeend", `
+      <div class="grid dynamic-row subrow">
+        <div>
+          <label>Brigadista ${i+1} — Nome completo</label>
+          <input data-field="nome" name="brig${i}nome" value="${esc(x.nome)}" maxlength="300">
+        </div>
+        <div>
+          <label>Brigadista ${i+1} — Unidade/Apartamento</label>
+          <input data-field="unidade" name="brig${i}un" value="${esc(x.unidade)}" maxlength="100">
+        </div>
+      </div>
+    `);
+  }
+}
+
+function updateGas(){
+  const gas = radioValue("gas") === "Sim";
+  const tipo = document.getElementById("gasTipo")?.value || "";
+  toggle("gasBox", gas);
+  toggle("ultraGasFields", gas && tipo === "Ultragás");
+  toggle("outraGasFields", gas && tipo === "Outra");
+}
+
+function renderDateStatus(inputId, labelText, warningDays = 30, emptyMessage = ""){
+  const input = document.getElementById(inputId);
+  const status = document.querySelector('[data-status-for="' + inputId + '"]');
+  if(!input || !status) return;
+
+  status.className = "date-status";
+
+  if(!input.value){
+    if(emptyMessage){
+      status.textContent = emptyMessage;
+    } else {
+      status.textContent = "";
+    }
+    return;
+  }
+
+  const end = new Date(input.value + "T23:59:59");
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const diff = Math.ceil((end - today) / 86400000);
+  const label = labelText || "Prazo";
+
+  if(diff < 0){
+    status.classList.add("expired");
+    status.textContent = label + " vencido";
+  }else if(diff <= warningDays){
+    status.classList.add("warning");
+    status.textContent = "Atenção: vence em " + diff + " dia(s).";
+  }else{
+    status.classList.add("valid");
+    status.textContent = label + " vigente até " + end.toLocaleDateString("pt-BR") + ".";
+  }
+}
+
+function updateMandate(){
+  renderDateStatus("fimMandato", "Mandato", 30, "Informe a data de vencimento do mandato.");
+}
+
+function updateDateAlerts(){
+  renderDateStatus("validPpci", "PPCI", 30);
+  renderDateStatus("recarga", "Recarga", 30);
+  renderDateStatus("cxData", "Limpeza da caixa d'água", 30);
+  renderDateStatus("dedData", "Dedetização", 30);
+  renderDateStatus("segData", "Seguro predial", 30);
+  updateMandate();
+}
+
+function updateProgress(){
+  const controls = [...form.querySelectorAll("input:not([type=hidden]), select, textarea")]
+    .filter(el => !el.closest(".hide"));
+
+  const filled = controls.filter(el => {
+    if(el.type === "radio") return el.checked;
+    return String(el.value || "").trim() !== "";
+  }).length;
+
+  const percent = controls.length ? Math.round((filled / controls.length) * 100) : 0;
+  document.getElementById("progressFill").style.width = percent + "%";
+  document.getElementById("progressText").textContent = percent + "% preenchido";
+}
+
+function update(){
+  const tipo = document.querySelector('input[name="sindicoTipo"]:checked')?.value || "";
+
+  toggle("sindicoMorador", tipo === "Morador");
+  toggle("sindicoProfissional", tipo === "Profissional");
+  toggle("conselhoBox", radioValue("conselho") === "Sim");
+  toggle("convFisBox", radioValue("conv") === "Sim");
+  toggle("regFisBox", radioValue("reg") === "Sim");
+  toggle("ppciBox", radioValue("ppci") === "Sim");
+  toggle("extBox", radioValue("ext") === "Sim");
+  toggle("brigBox", radioValue("brig") === "Sim");
+  toggle("segBox", radioValue("seg") === "Sim");
+  toggle("segurancaBox", radioValue("seguranca") === "Sim");
+  toggle("juridicoBox", radioValue("juridico") === "Sim");
+  toggle("mercBox", radioValue("mercadinho") === "Sim");
+
+  updateGas();
+
+  if(radioValue("conselho") === "Sim") renderConselho();
+  if(radioValue("brig") === "Sim") renderBrig();
+
+  updateDateAlerts();
+  updateProgress();
+}
+
+function markChanged(){
+  if(saveState) saveState.innerHTML = "Há alterações <strong>não salvas</strong>";
+  updateProgress();
+}
+
+document.querySelectorAll('input[type="radio"]').forEach(x => x.addEventListener("change", () => {
+  update();
+  markChanged();
+}));
+
+document.getElementById("qtdConselheiros")?.addEventListener("input", () => {
+  renderConselho(); markChanged();
+});
+
+document.getElementById("qtdBrig")?.addEventListener("input", () => {
+  renderBrig(); markChanged();
+});
+
+document.getElementById("conselhoList")?.addEventListener("input", () => {
+  consState = currentRows("conselhoList"); markChanged();
+});
+
+document.getElementById("brigList")?.addEventListener("input", () => {
+  brigState = currentRows("brigList"); markChanged();
+});
+
+document.getElementById("gasTipo")?.addEventListener("change", () => {
+  updateGas(); markChanged();
+});
+
+["validPpci", "recarga", "cxData", "dedData", "segData", "fimMandato"].forEach(id => {
+  document.getElementById(id)?.addEventListener("change", () => {
+    updateDateAlerts();
+    markChanged();
+  });
+});
+
+form.addEventListener("input", e => {
+  if(e.target.type !== "radio"){
+    markChanged();
+  }
+});
+
+form.addEventListener("change", () => {
+  updateProgress();
+});
+
+form.addEventListener("submit", () => {
+  saveButton.disabled = true;
+  saveButton.textContent = "Salvando...";
+  saveState.textContent = "Enviando atualização...";
+});
+
+window.addEventListener("beforeunload", e => {
+  if(saveState?.textContent.includes("não salvas")){
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
+
+/* Máscaras leves */
+function digitsOnly(value){
+  return String(value || "").replace(/\D/g, "");
+}
+
+function maskCNPJ(value){
+  return digitsOnly(value).slice(0,14)
+    .replace(/^(\d{2})(\d)/,"$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/,".$1/$2")
+    .replace(/(\d{4})(\d)/,"$1-$2");
+}
+
+function maskCPF(value){
+  return digitsOnly(value).slice(0,11)
+    .replace(/(\d{3})(\d)/,"$1.$2")
+    .replace(/(\d{3})(\d)/,"$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/,"$1-$2");
+}
+
+function maskPhone(value){
+  const digits = digitsOnly(value).slice(0,11);
+  if(!digits) return "";
+  if(digits.length <= 10){
+    return digits.replace(/^(\d{2})(\d{4})(\d{0,4})$/, (_, a, b, c) => c ? `(${a}) ${b}-${c}` : `(${a}) ${b}`);
+  }
+  return digits.replace(/^(\d{2})(\d{5})(\d{0,4})$/, (_, a, b, c) => c ? `(${a}) ${b}-${c}` : `(${a}) ${b}`);
+}
+
+function maskCEP(value){
+  return digitsOnly(value).slice(0,8)
+    .replace(/(\d{5})(\d)/,"$1-$2");
+}
+
+async function buscarEnderecoPorCep(){
+  const cepField = document.getElementById("endereco_cep");
+  const status = document.getElementById("cepStatus");
+  const btn = document.getElementById("buscarEnderecoBtn");
+  if(!cepField || !status || !btn) return;
+
+  const cep = digitsOnly(cepField.value).slice(0,8);
+  if(cep.length !== 8){
+    status.textContent = "Digite um CEP com 8 números para buscar o endereço.";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Buscando...";
+  status.textContent = "Consultando CEP...";
+
+  try{
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+    if(data.erro){
+      status.textContent = "CEP não encontrado. Preencha os dados do endereço manualmente.";
+      return;
+    }
+
+    const rua = document.getElementById("endereco_rua");
+    const bairro = document.getElementById("endereco_bairro");
+    const cidade = document.getElementById("endereco_cidade");
+    const estado = document.getElementById("endereco_estado");
+
+    if(rua) rua.value = data.logradouro || "";
+    if(bairro) bairro.value = data.bairro || "";
+    if(cidade) cidade.value = data.localidade || "";
+    if(estado) estado.value = (data.uf || "").toUpperCase();
+
+    status.textContent = "Endereço preenchido automaticamente.";
+    markChanged();
+  } catch (err) {
+    status.textContent = "Não foi possível consultar o CEP. Preencha manualmente.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Buscar endereço";
+  }
+}
+
+document.getElementById("cnpj")?.addEventListener("input", e => e.target.value = maskCNPJ(e.target.value));
+document.getElementById("cnpjEmpresaSindico")?.addEventListener("input", e => e.target.value = maskCNPJ(e.target.value));
+document.getElementById("cpfSindico")?.addEventListener("input", e => e.target.value = maskCPF(e.target.value));
+document.getElementById("telSindico")?.addEventListener("input", e => e.target.value = maskPhone(e.target.value));
+document.getElementById("telResponsavelSindico")?.addEventListener("input", e => e.target.value = maskPhone(e.target.value));
+document.getElementById("endereco_cep")?.addEventListener("input", e => {
+  e.target.value = maskCEP(e.target.value);
+  if(digitsOnly(e.target.value).length === 8){
+    buscarEnderecoPorCep();
+  }
+});
+document.getElementById("endereco_cep")?.addEventListener("blur", () => {
+  if(digitsOnly(document.getElementById("endereco_cep")?.value || "").length === 8){
+    buscarEnderecoPorCep();
+  }
+});
+document.getElementById("buscarEnderecoBtn")?.addEventListener("click", buscarEnderecoPorCep);
+
+["cnpj", "cnpjEmpresaSindico", "cpfSindico", "telSindico", "telResponsavelSindico", "endereco_cep"].forEach(id => {
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(id === "cnpj") el.value = maskCNPJ(el.value);
+  if(id === "cnpjEmpresaSindico") el.value = maskCNPJ(el.value);
+  if(id === "cpfSindico") el.value = maskCPF(el.value);
+  if(id === "telSindico") el.value = maskPhone(el.value);
+  if(id === "telResponsavelSindico") el.value = maskPhone(el.value);
+  if(id === "endereco_cep") el.value = maskCEP(el.value);
+});
+
+update();
+</script>
+</body>
+</html>

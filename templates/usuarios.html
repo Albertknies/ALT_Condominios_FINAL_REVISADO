@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ALT — Usuários</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="brand-header">
+    <div class="brand-content">
+      <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+      <div class="brand-info">
+        <strong>ALT Gestão de Condomínios</strong>
+        <span>Gerenciamento de usuários</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-head">
+      <div>
+        <span class="page-kicker">Administração</span>
+        <h1>Usuários</h1>
+      </div>
+    </div>
+
+    {% with messages=get_flashed_messages(with_categories=true) %}
+      {% for cat,msg in messages %}
+        <div class="flash {{ cat }}" role="alert">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <section class="card admin-panel">
+      <h2>Criar usuário</h2>
+      <form method="post" action="{{ url_for('criar_usuario') }}" class="form-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field">
+          <label for="username">Usuário</label>
+          <input id="username" name="username" type="text" required>
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <div class="password-wrap">
+            <input id="password" name="password" type="password" required>
+            <button type="button" class="toggle-password" data-target="password" aria-label="Mostrar senha">Mostrar</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="password_confirm">Confirmar senha</label>
+          <div class="password-wrap">
+            <input id="password_confirm" name="password_confirm" type="password" required>
+            <button type="button" class="toggle-password" data-target="password_confirm" aria-label="Mostrar senha">Mostrar</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="role">Perfil</label>
+          <select id="role" name="role">
+            <option value="normal">Normal</option>
+            <option value="financeiro">Financeiro</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <button type="submit" class="btn success">Salvar usuário</button>
+      </form>
+    </section>
+
+    <section class="card list-card">
+      <div class="list-header"><strong>Usuários cadastrados</strong></div>
+      {% for user in usuarios %}
+        <div class="list-row user-row">
+          <div class="row-main">
+            <strong>{{ user.username }}</strong>
+            <small>{{ user.role }} · cadastrado em {{ user.created_at }}</small>
+          </div>
+          <div class="row-actions">
+            {% if user.username == 'admin' %}
+            <form method="post" action="{{ url_for('editar_usuario', user_id=user.id) }}" class="inline-form reset-password-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="password-inline-stack">
+                <div class="field compact-field">
+                  <label for="admin_username_{{ user.id }}">Usuário</label>
+                  <input id="admin_username_{{ user.id }}" name="username" type="text" value="{{ user.username }}" required>
+                </div>
+                <div class="password-wrap compact">
+                  <input id="admin_password_{{ user.id }}" name="password" type="password" placeholder="Nova senha (opcional)">
+                  <button type="button" class="toggle-password" data-target="admin_password_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button>
+                </div>
+                <div class="password-wrap compact">
+                  <input id="admin_password_confirm_{{ user.id }}" name="password_confirm" type="password" placeholder="Confirmar nova senha">
+                  <button type="button" class="toggle-password" data-target="admin_password_confirm_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button>
+                </div>
+              </div>
+              <button type="submit" class="btn ghost small">Salvar admin</button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('reset_senha_usuario', user_id=user.id) }}" class="inline-form reset-password-form" onsubmit="return confirm('Deseja redefinir a senha deste usuário?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="password-inline-stack">
+                <div class="password-wrap compact">
+                  <input id="new_password_{{ user.id }}" name="new_password" type="password" placeholder="Nova senha" required minlength="4">
+                  <button type="button" class="toggle-password" data-target="new_password_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button>
+                </div>
+                <div class="password-wrap compact">
+                  <input id="new_password_confirm_{{ user.id }}" name="new_password_confirm" type="password" placeholder="Confirmar senha" required minlength="4">
+                  <button type="button" class="toggle-password" data-target="new_password_confirm_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button>
+                </div>
+              </div>
+              <button type="submit" class="btn ghost small">Resetar senha</button>
+            </form>
+            <form method="post" action="{{ url_for('excluir_usuario', user_id=user.id) }}" class="inline-form" onsubmit="return confirm('Deseja realmente excluir este usuário?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn danger small">Excluir</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <p class="empty">Nenhum usuário cadastrado.</p>
+      {% endfor %}
+    </section>
+  </main>
+
+  <script>
+    document.querySelectorAll('.toggle-password').forEach(function (button) {
+      button.addEventListener('click', function () {
+        const targetId = this.dataset.target;
+        const input = document.getElementById(targetId) || document.querySelector('[name="' + targetId + '"]');
+        if (!input) return;
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        this.textContent = showing ? 'Mostrar' : 'Ocultar';
+        this.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      });
+    });
+  </script>
+</body>
+</html>

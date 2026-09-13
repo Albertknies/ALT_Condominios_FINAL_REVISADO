@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALT — Resumo por categoria</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="brand-header">
+	<div class="brand-content">
+		<img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+		<div class="brand-info"><strong>ALT Gestão de Condomínios</strong><span>Resumo por categoria</span></div>
+	</div>
+</header>
+
+<main>
+	<div class="page-head">
+		<div>
+			<span class="page-kicker">Financeiro</span>
+			<h1>Resumo por categoria</h1>
+		</div>
+		<div class="header-actions">
+			<span class="user-badge">{{ current_user().username }} · {{ current_user().role }}</span>
+			<a class="btn ghost" href="{{ url_for('financeiro_categorias', mes=mes) }}">Categorias</a>
+			<a class="btn ghost" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+			<a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
+		</div>
+	</div>
+
+	<nav class="finance-menu" aria-label="Menu financeiro">
+		<a href="{{ url_for('financeiro', mes=mes) }}">Painel</a>
+		<a href="{{ url_for('financeiro', mes=mes) }}#tab-receitas">Receitas</a>
+		<a href="{{ url_for('financeiro', mes=mes) }}#tab-despesas">Despesas</a>
+		<a href="{{ url_for('financeiro_categorias', mes=mes) }}">Categorias</a>
+		<a class="is-active" href="{{ url_for('resumo_categoria', mes=mes) }}">Resumo por categoria</a>
+		<a href="{{ url_for('financeiro', mes=mes) }}#tab-bancos">Dados bancários</a>
+		<a href="{{ url_for('relatorio_financeiro', mes=mes) }}">Relatório PDF</a>
+	</nav>
+
+	{% with messages=get_flashed_messages(with_categories=true) %}
+		{% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+	{% endwith %}
+
+	<section class="card finance-panel">
+		<div class="list-header">
+			<div>
+				<strong>Valores por categoria</strong>
+				<small>Movimentação financeira consolidada no mês {{ mes }}.</small>
+			</div>
+		</div>
+
+		<div class="finance-toolbar">
+			<div class="finance-filter-group">
+				<label>Mês</label>
+				<input type="month" value="{{ mes }}" onchange="window.location.href='{{ url_for('resumo_categoria') }}?mes=' + this.value">
+			</div>
+		</div>
+
+		<div class="finance-table-wrap">
+			<table class="finance-table">
+				<thead>
+					<tr><th>Tipo</th><th>Categoria</th><th>Total</th></tr>
+				</thead>
+				<tbody>
+					{% for item in resumo %}
+					<tr>
+						<td>{{ 'Receita' if item.tipo == 'receita' else 'Despesa' }}</td>
+						<td><strong>{{ item.nome }}</strong></td>
+						<td>R$ {{ '%.2f'|format(item.total) }}</td>
+					</tr>
+					{% else %}
+					<tr><td colspan="3" class="empty">Nenhuma categoria com movimentação neste mês.</td></tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+</body>
+</html>

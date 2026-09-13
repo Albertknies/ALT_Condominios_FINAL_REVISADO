@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ALT — Relatório de acesso</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="brand-header">
+    <div class="brand-content">
+      <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+      <div class="brand-info">
+        <strong>ALT Gestão de Condomínios</strong>
+        <span>Relatório de acesso</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
+      <a class="btn ghost" href="{{ url_for('usuarios') }}">Usuários</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-head">
+      <div>
+        <span class="page-kicker">Administração</span>
+        <h1>Relatório de acesso</h1>
+      </div>
+    </div>
+
+    <section class="card admin-panel">
+      <h2>Filtros</h2>
+      <form method="get" action="{{ url_for('auditoria') }}" class="filter-form">
+        <div class="field">
+          <label for="usuario">Usuário</label>
+          <select id="usuario" name="usuario">
+            <option value="">Todos</option>
+            {% for user in usuarios %}
+              <option value="{{ user }}" {% if user == filtro_usuario %}selected{% endif %}>{{ user }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="acao">Ação</label>
+          <select id="acao" name="acao">
+            <option value="">Todas</option>
+            {% for action in acoes %}
+              <option value="{{ action }}" {% if action == filtro_acao %}selected{% endif %}>{{ action }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="data">Data</label>
+          <input id="data" name="data" type="date" value="{{ filtro_data }}">
+        </div>
+
+        <div class="field">
+          <label for="mes">Mês</label>
+          <input id="mes" name="mes" type="month" value="{{ filtro_mes }}">
+        </div>
+
+        <div class="filter-actions">
+          <button type="submit" class="btn success">Filtrar</button>
+          <a class="btn ghost" href="{{ url_for('auditoria') }}">Limpar</a>
+          <a class="btn ghost" href="{{ url_for('exportar_auditoria_pdf', mes=filtro_mes or '', usuario=filtro_usuario, acao=filtro_acao) }}" target="_blank" rel="noopener noreferrer">Exportar PDF</a>
+          <button type="button" class="btn ghost" onclick="window.open('{{ url_for('exportar_auditoria_pdf', mes=filtro_mes or '', usuario=filtro_usuario, acao=filtro_acao) }}', '_blank'); setTimeout(function(){ window.print(); }, 400);">Imprimir PDF</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card list-card">
+      <div class="list-header">
+        <strong>Últimas ações</strong>
+        <span>{{ entries|length }} registros</span>
+      </div>
+
+      {% for entry in entries %}
+        <div class="list-row audit-row">
+          <div class="row-main">
+            <strong>{{ entry.action }}</strong>
+            <small>{{ entry.username or 'Sistema' }} · {{ entry.created_at }}</small>
+            {% if entry.details %}
+              <div class="audit-details">{{ entry.details }}</div>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <p class="empty">Nenhuma ação registrada para os filtros selecionados.</p>
+      {% endfor %}
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#4F2C68">
+<title>ALT — Cadastro salvo com sucesso</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="brand-header">
+  <div class="brand-content">
+    <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT Gestão de Condomínios">
+    <div class="brand-info">
+      <strong>ALT Gestão de Condomínios</strong>
+      <span>Cadastro e atualização</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
+  </div>
+</header>
+
+<main class="success-main">
+  <section class="success-card" aria-labelledby="success-title">
+
+    <div class="success-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 12.5L9.2 16.5L19 7" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <span class="success-label">Operação concluída</span>
+
+    <h1 id="success-title">Cadastro salvo com sucesso</h1>
+
+    <p class="success-name">{{ nome }}</p>
+
+    <div class="success-info">
+      <div class="info-item">
+        <span class="info-icon" aria-hidden="true">✓</span>
+        <div>
+          <span class="info-label">Status</span>
+          <strong>Atualização registrada</strong>
+        </div>
+      </div>
+
+      <div class="info-item">
+        <span class="info-icon" aria-hidden="true">⏱</span>
+        <div>
+          <span class="info-label">Data e horário</span>
+          <strong>{{ atualizado }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <p class="success-message">
+      Os dados foram registrados corretamente no sistema da ALT.
+      Escolha uma das opções abaixo para continuar.
+    </p>
+
+    <div class="success-actions">
+      <a class="btn success" href="{{ url_for('pdf', cid=cid) }}">
+        ↓&nbsp; Gerar e baixar PDF
+      </a>
+
+      <a class="btn ghost" target="_blank" rel="noopener noreferrer"
+         href="{{ url_for('pdf', cid=cid, visualizar=1) }}">
+        ↗&nbsp; Abrir PDF para imprimir
+      </a>
+
+      <div class="action-divider"></div>
+
+      <a class="btn ghost" href="{{ url_for('editar', cid=cid) }}">
+        Continuar editando
+      </a>
+
+      <a class="btn ghost" href="{{ url_for('index') }}">
+        Voltar ao início
+      </a>
+    </div>
+
+  </section>
+</main>
+
+<footer>ALT Gestão de Condomínios · Sistema local</footer>
+</body>
+</html>

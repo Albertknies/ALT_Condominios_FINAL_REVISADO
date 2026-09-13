@@ -1,0 +1,35 @@
+ALT GESTÃO DE CONDOMÍNIOS — VERSÃO REVISADA
+
+PRIMEIRO USO
+1. Extraia a pasta inteira para um local fixo do computador.
+2. Execute INSTALAR.bat uma vez.
+3. Ao finalizar, execute CRIAR_ATALHOS.bat.
+4. Abra o sistema pelo ícone "ALT Gestão de Condomínios" criado no Menu Iniciar ou na Área de Trabalho.
+
+USO NORMAL
+- Use somente o atalho com o logo da ALT.
+- O servidor local roda em segundo plano, sem janela CMD.
+- Se o sistema já estiver aberto, clicar novamente no atalho não cria uma segunda cópia do servidor.
+- O sistema abre em janela de aplicativo do Microsoft Edge ou Google Chrome quando disponível.
+
+DADOS E BACKUP
+- Banco local: pasta data.
+- Backup manual: botão "Exportar backup".
+- O sistema também cria snapshots automáticos do banco na pasta backups e mantém os 15 mais recentes.
+- Importação de backup adiciona os registros e não sobrescreve os existentes.
+
+PDF
+- O botão PDF gera o arquivo e também o salva automaticamente em:
+  PDFs\NOME_DO_CONDOMINIO\AAAA-MM-DD\
+- O arquivo também é enviado para o navegador para visualização/download.
+
+IMPORTANTE
+- Não abra app.py diretamente.
+- Não abra os arquivos HTML diretamente.
+- Não apague as pastas data, backups ou PDFs.
+- O sistema foi projetado para uso local neste computador.
+- Não exponha a porta local para a internet ou rede.
+
+REQUISITO
+- Windows com Python 3.11 ou superior instalado para a instalação inicial.
+- Depois de instalado, o uso normal não precisa abrir o Python manualmente.

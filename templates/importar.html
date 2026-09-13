@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#4F2C68">
+<title>ALT — Importar backup</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="brand-header">
+  <div class="brand-content">
+    <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+    <div class="brand-info">
+      <strong>ALT Gestão de Condomínios</strong>
+      <span>Backup e restauração</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
+  </div>
+</header>
+
+<main>
+  <div class="page-head">
+    <div>
+      <span class="page-kicker">Restauração</span>
+      <h1>Importar backup</h1>
+      <p>Selecione um arquivo JSON exportado pelo sistema.</p>
+    </div>
+  </div>
+
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+
+  <section class="card">
+    <form method="post" action="{{ url_for('importar_json') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="grid">
+        <div class="full">
+          <label for="arquivo">Arquivo JSON</label>
+          <input type="file" id="arquivo" name="arquivo" accept=".json,application/json" required>
+        </div>
+      </div>
+      <div class="bottom">
+        <a class="btn ghost" href="{{ url_for('index') }}">Cancelar</a>
+        <button class="btn success" type="submit">Importar arquivo</button>
+      </div>
+    </form>
+  </section>
+</main>
+
+<footer>ALT Gestão de Condomínios · Sistema local</footer>
+</body>
+</html>

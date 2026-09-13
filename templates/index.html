@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALT — Condomínios</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="brand-header">
+  <div class="brand-content">
+    <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+    <div class="brand-info"><strong>ALT Gestão de Condomínios</strong><span>Gestão local</span></div>
+  </div>
+</header>
+
+<main>
+  <div class="page-head">
+    <div>
+      <h1>Condomínios</h1>
+    </div>
+    <div class="header-actions">
+      <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }} · {{ current_user().role if current_user() else 'sem acesso' }}</span>
+      <a class="btn ghost" href="{{ url_for('carteiras') }}">Carteiras</a>
+      <a class="btn success" href="{{ url_for('novo') }}">Novo cadastro</a>
+      <a class="btn secondary" href="{{ url_for('importar') }}">Importar</a>
+      <a class="btn ghost" href="{{ url_for('exportar_json') }}">Exportar</a>
+      {% if current_user() and current_user().role in ['admin', 'financeiro'] %}
+      <a class="btn ghost" href="{{ url_for('financeiro') }}">Financeiro</a>
+      {% endif %}
+      {% if current_user() and current_user().role == 'admin' %}
+      <a class="btn ghost" href="{{ url_for('usuarios') }}">Usuários</a>
+      <a class="btn ghost" href="{{ url_for('auditoria') }}">Relatório de acesso</a>
+      {% endif %}
+      <a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
+    </div>
+  </div>
+
+  {% if current_user() and current_user().role in ['admin', 'financeiro'] %}
+  <nav class="finance-menu" aria-label="Menu financeiro">
+    <a class="is-active" href="{{ url_for('financeiro') }}">Painel</a>
+    <a href="{{ url_for('financeiro') }}#tab-receitas">Receitas</a>
+    <a href="{{ url_for('financeiro') }}#tab-despesas">Despesas</a>
+    <a href="{{ url_for('financeiro_categorias') }}">Categorias</a>
+    <a href="{{ url_for('resumo_categoria') }}">Resumo por categoria</a>
+    <a href="{{ url_for('financeiro') }}#tab-bancos">Dados bancários</a>
+    <a href="{{ url_for('relatorio_financeiro') }}">Relatório PDF</a>
+  </nav>
+  {% endif %}
+
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+
+  <section class="home-grid">
+    <a class="home-card" href="{{ url_for('novo') }}">
+      <span class="home-card-icon">＋</span>
+      <strong>Novo cadastro</strong>
+      <small>Criar ou atualizar condomínio.</small>
+    </a>
+
+    <a class="home-card" href="{{ url_for('carteiras') }}">
+      <span class="home-card-icon">👥</span>
+      <strong>Carteiras</strong>
+      <small>Vínculo por síndico.</small>
+    </a>
+
+    <a class="home-card" href="{{ url_for('importar') }}">
+      <span class="home-card-icon">↑</span>
+      <strong>Importar</strong>
+      <small>Restaurar backup JSON.</small>
+    </a>
+
+    <a class="home-card" href="{{ url_for('exportar_json') }}">
+      <span class="home-card-icon">↓</span>
+      <strong>Exportar</strong>
+      <small>Gerar backup seguro.</small>
+    </a>
+
+    {% if current_user() and current_user().role in ['admin', 'financeiro'] %}
+    <a class="home-card" href="{{ url_for('financeiro') }}">
+      <span class="home-card-icon">$</span>
+      <strong>Financeiro</strong>
+      <small>Resumo dos dados bancários.</small>
+    </a>
+    {% endif %}
+  </section>
+
+  <section class="stats-grid">
+    <div class="stat-card">
+      <span>Total</span>
+      <strong>{{ total }}</strong>
+    </div>
+    <div class="stat-card purple">
+      <span>Profissionais</span>
+      <strong>{{ profissionais }}</strong>
+    </div>
+    <div class="stat-card green">
+      <span>Moradores</span>
+      <strong>{{ moradores }}</strong>
+    </div>
+    <div class="stat-card gray">
+      <span>Sem tipo</span>
+      <strong>{{ sem_sindico }}</strong>
+    </div>
+  </section>
+
+  <section class="alert-summary">
+    <div class="alert-pill red">
+      <span>Vencidos</span>
+      <strong>{{ alert_summary.red }}</strong>
+    </div>
+    <div class="alert-pill yellow">
+      <span>Próximos</span>
+      <strong>{{ alert_summary.yellow }}</strong>
+    </div>
+    <div class="alert-pill green">
+      <span>Em dia</span>
+      <strong>{{ alert_summary.green }}</strong>
+    </div>
+  </section>
+
+  <section class="card search-panel">
+    <div class="search-box">
+      <label for="searchInput">Buscar</label>
+      <div class="search-input-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="searchInput" type="text" placeholder="Nome, síndico, responsável ou empresa" autocomplete="off">
+      </div>
+    </div>
+  </section>
+
+  <section class="card filter-panel" aria-label="Filtrar por status">
+    <div class="filter-pills">
+      <button type="button" class="filter-pill active alert-green" data-filter-status="all">Todos</button>
+      <button type="button" class="filter-pill alert-red" data-filter-status="red">Vencidos</button>
+      <button type="button" class="filter-pill alert-yellow" data-filter-status="yellow">Próximos</button>
+      <button type="button" class="filter-pill alert-green" data-filter-status="green">Em dia</button>
+    </div>
+  </section>
+
+  <section class="card list-card">
+    <div class="list-header">
+      <strong>Registros</strong>
+      <span id="resultsCount">{{ total }} item(s)</span>
+    </div>
+
+    {% for item in items %}
+      <div class="list-row alert-{{ item['status'] }}" data-name="{{ item['nome']|lower }}" data-search="{{ item['search_text'] }}" data-status="{{ item['status'] }}">
+        <div class="row-main">
+          <div class="row-title-wrap">
+            <span class="status-dot {{ item['status'] }}" aria-label="Status do condomínio"></span>
+            <div>
+              <strong>{{ item['nome'] }}</strong>
+              <small>Últ. atualização: {{ item['atualizado_em'] }}</small>
+            </div>
+          </div>
+          {% if item['issues'] %}
+            <div class="alert-issues">
+              {% for issue in item['issues'] %}
+                <span class="issue-pill {{ issue['status'] }}">
+                  {{ issue['label'] }} · {{ issue['date'] }} · {{ issue['days_left_label'] }}
+                </span>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="alert-issues">
+              <span class="issue-pill green">Sem pendências</span>
+            </div>
+          {% endif %}
+        </div>
+        <div class="row-actions">
+          <a class="btn ghost small" href="{{ url_for('editar', cid=item['id']) }}">Abrir</a>
+          <a class="btn ghost small" href="{{ url_for('pdf', cid=item['id']) }}">PDF</a>
+          <form method="post" action="{{ url_for('excluir', cid=item['id']) }}" class="inline-form" onsubmit="return confirm('Deseja realmente excluir este registro?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn danger small">Excluir</button>
+          </form>
+        </div>
+      </div>
+    {% else %}
+      <p class="empty">Nenhum condomínio cadastrado.</p>
+    {% endfor %}
+  </section>
+</main>
+
+<footer>ALT Gestão de Condomínios</footer>
+
+<script>
+  const searchInput = document.getElementById('searchInput');
+  const rows = [...document.querySelectorAll('.list-row[data-search]')];
+  const resultsCount = document.getElementById('resultsCount');
+  const filterButtons = [...document.querySelectorAll('.filter-pill[data-filter-status]')];
+
+  let currentStatusFilter = 'all';
+
+  function updateFilter() {
+    const value = (searchInput?.value || '').trim().toLowerCase();
+    let visible = 0;
+
+    rows.forEach(function (row) {
+      const text = (row.dataset.search || '').toLowerCase();
+      const statusMatch = currentStatusFilter === 'all' || (row.dataset.status || '') === currentStatusFilter;
+      const textMatch = !value || text.includes(value);
+      const match = statusMatch && textMatch;
+      row.style.display = match ? '' : 'none';
+      if (match) visible += 1;
+    });
+
+    if (resultsCount) {
+      resultsCount.textContent = visible + ' item(s)';
+    }
+  }
+
+  filterButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      currentStatusFilter = button.dataset.filterStatus || 'all';
+      filterButtons.forEach(function (item) {
+        item.classList.toggle('active', item === button);
+      });
+      updateFilter();
+    });
+  });
+
+  const rowsList = document.querySelectorAll('.list-row[data-search]');
+
+  rowsList.forEach(function (row) {
+    row.addEventListener('click', function (event) {
+      if (event.target.closest('a, button, form')) return;
+      rowsList.forEach(function (item) { item.classList.remove('selected'); });
+      row.classList.add('selected');
+    });
+  });
+
+  searchInput?.addEventListener('input', updateFilter);
+  updateFilter();
+</script>
+</body>
+</html>

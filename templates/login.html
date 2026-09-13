@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ALT — Login</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="brand-header">
+    <div class="brand-content">
+      <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+      <div class="brand-info">
+        <strong>ALT Gestão de Condomínios</strong>
+        <span>Controle de acesso</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="login-main">
+    <section class="login-card">
+      <div class="login-header">
+        <span class="page-kicker">Acesso</span>
+        <h1>Entrar no sistema</h1>
+      </div>
+
+      {% with messages=get_flashed_messages(with_categories=true) %}
+        {% for cat,msg in messages %}
+          <div class="flash {{ cat }}" role="alert">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="post" action="{{ url_for('login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div class="field">
+          <label for="username">Usuário</label>
+          <input id="username" name="username" type="text" autocomplete="username" required>
+        </div>
+
+        <div class="field">
+          <label for="password">Senha</label>
+          <div class="password-wrap">
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button type="button" class="toggle-password" data-target="password" aria-label="Mostrar senha">Mostrar</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn success full">Entrar</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>ALT Gestão de Condomínios · Sistema local</footer>
+
+  <script>
+    document.querySelectorAll('.toggle-password').forEach(function (button) {
+      button.addEventListener('click', function () {
+        const input = document.getElementById(this.dataset.target);
+        if (!input) return;
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        this.textContent = showing ? 'Mostrar' : 'Ocultar';
+        this.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      });
+    });
+  </script>
+</body>
+</html>

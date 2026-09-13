@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALT — Categorias financeiras</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="brand-header">
+	<div class="brand-content">
+		<img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+		<div class="brand-info"><strong>ALT Gestão de Condomínios</strong><span>Categorias financeiras</span></div>
+	</div>
+</header>
+
+<main>
+	<div class="page-head">
+		<div>
+			<span class="page-kicker">Financeiro</span>
+			<h1>Categoria financeira</h1>
+		</div>
+		<div class="header-actions">
+			<span class="user-badge">{{ current_user().username }} · {{ current_user().role }}</span>
+			<a class="btn ghost" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+			<a class="btn ghost" href="{{ url_for('resumo_categoria', mes=mes) }}">Resumo por categoria</a>
+			<a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
+		</div>
+	</div>
+
+	<nav class="finance-menu" aria-label="Menu financeiro">
+		<a href="{{ url_for('financeiro', mes=mes) }}">Painel</a>
+		<a href="{{ url_for('financeiro', mes=mes) }}#tab-receitas">Receitas</a>
+		<a href="{{ url_for('financeiro', mes=mes) }}#tab-despesas">Despesas</a>
+		<a class="is-active" href="{{ url_for('financeiro_categorias', mes=mes) }}">Categorias</a>
+		<a href="{{ url_for('resumo_categoria', mes=mes) }}">Resumo por categoria</a>
+		<a href="{{ url_for('financeiro', mes=mes) }}#tab-bancos">Dados bancários</a>
+		<a href="{{ url_for('relatorio_financeiro', mes=mes) }}">Relatório PDF</a>
+	</nav>
+
+	{% with messages=get_flashed_messages(with_categories=true) %}
+		{% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+	{% endwith %}
+
+	<section class="card finance-panel">
+		<div class="list-header">
+			<div>
+				<strong>Cadastro de categorias</strong>
+				<small>Organize receitas e despesas com filtros e botões de ação.</small>
+			</div>
+		</div>
+
+		<div class="finance-tabs">
+			<div class="finance-tabs-header">
+				<button type="button" class="finance-tab-button is-active" data-target="tab-categoria-cadastro">Cadastrar</button>
+				<button type="button" class="finance-tab-button" data-target="tab-categoria-lista">Lista</button>
+			</div>
+
+			<div id="tab-categoria-cadastro" class="finance-tab-panel is-active">
+				<form class="finance-form" method="post" action="{{ url_for('salvar_categoria') }}">
+					<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+					<label>Nome da categoria
+						<input type="text" name="nome" maxlength="100" placeholder="Ex.: Condomínio, Salário, Energia" required>
+					</label>
+					<label>Tipo
+						<select name="tipo">
+							<option value="receita">Receita</option>
+							<option value="despesa">Despesa</option>
+						</select>
+					</label>
+					<label>Descrição
+						<textarea name="descricao" rows="3" maxlength="500" placeholder="Descrição da categoria"></textarea>
+					</label>
+					<div class="finance-form-actions">
+						<button type="submit" class="btn success">Salvar categoria</button>
+						<a class="btn ghost" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+					</div>
+				</form>
+			</div>
+
+			<div id="tab-categoria-lista" class="finance-tab-panel">
+				<div class="finance-table-wrap">
+					<table class="finance-table">
+						<thead>
+							<tr><th>Tipo</th><th>Categoria</th><th>Descrição</th></tr>
+						</thead>
+						<tbody>
+							{% for categoria in receitas + despesas %}
+							<tr>
+								<td>{{ 'Receita' if categoria.tipo == 'receita' else 'Despesa' }}</td>
+								<td><strong>{{ categoria.nome }}</strong></td>
+								<td>{{ categoria.descricao or '—' }}</td>
+							</tr>
+							{% else %}
+							<tr><td colspan="3" class="empty">Nenhuma categoria cadastrada.</td></tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</section>
+</main>
+
+<script>
+	const tabButtons = document.querySelectorAll('.finance-tab-button');
+	const tabPanels = document.querySelectorAll('.finance-tab-panel');
+	tabButtons.forEach((button) => {
+		button.addEventListener('click', () => {
+			tabButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+			tabPanels.forEach((panel) => panel.classList.toggle('is-active', panel.id === button.dataset.target));
+		});
+	});
+</script>
+</body>
+</html>
