@@ -26,15 +26,27 @@ from werkzeug.utils import secure_filename
 from waitress import serve
 
 BASE = Path(__file__).resolve().parent
-DB = BASE / "data" / "alt.db"
-BACKUPS = BASE / "backups"
-PDFS = BASE / "PDFs"
+
+# O Vercel executa a aplicação em um sistema de arquivos somente para leitura.
+# Por isso, arquivos temporários precisam ficar em /tmp quando estamos online.
+# No computador local, o sistema continua usando as pastas originais do projeto.
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+if IS_VERCEL:
+    DATA_DIR = Path("/tmp/alt_data")
+    BACKUPS = Path("/tmp/alt_backups")
+    PDFS = Path("/tmp/alt_pdfs")
+else:
+    DATA_DIR = BASE / "data"
+    BACKUPS = BASE / "backups"
+    PDFS = BASE / "PDFs"
+
+DB = DATA_DIR / "alt.db"
 PORT = int(os.environ.get("ALT_PORT", "47891"))
 MASTER_USERNAME = "albert"
 MASTER_PASSWORD = "@Gi234396"
-DB.parent.mkdir(exist_ok=True)
-BACKUPS.mkdir(exist_ok=True)
-PDFS.mkdir(exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+BACKUPS.mkdir(parents=True, exist_ok=True)
+PDFS.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("ALT_SECRET_KEY") or secrets.token_hex(32)
@@ -43,6 +55,11 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
 )
+
+# No Vercel, não existe o fluxo __main__ usado pelo servidor local.
+# Inicializamos o SQLite temporário somente para permitir que a aplicação
+# suba e possa ser testada online. O banco persistente deverá ser migrado
+# posteriormente para PostgreSQL ou outro banco externo.
 
 logging.basicConfig(level=logging.INFO, format="[ALT] %(levelname)s: %(message)s")
 
@@ -195,6 +212,12 @@ def ensure_finance_schema():
                 if col_name not in columns_existing:
                     c.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_definition}")
         c.commit()
+
+
+# O Vercel importa app.py diretamente, sem executar o bloco __main__.
+# Criamos as tabelas nesse ambiente para que a função Flask possa iniciar.
+if IS_VERCEL:
+    init_db()
 
 
 def clean(v, limit=5000):
