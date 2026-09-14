@@ -1210,6 +1210,28 @@ def financeiro():
 
     categorias = get_finance_categorias()
 
+    editar_receita_id = request.args.get("editar_receita", "").strip()
+    editar_despesa_id = request.args.get("editar_despesa", "").strip()
+    editar_receita = None
+    editar_despesa = None
+
+    with conn() as c:
+        if editar_receita_id.isdigit():
+            row = c.execute(
+                "SELECT r.*, c.nome AS condominio FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id WHERE r.id = ?",
+                (int(editar_receita_id),),
+            ).fetchone()
+            if row:
+                editar_receita = dict(row)
+
+        if editar_despesa_id.isdigit():
+            row = c.execute(
+                "SELECT * FROM financeiro_despesas WHERE id = ?",
+                (int(editar_despesa_id),),
+            ).fetchone()
+            if row:
+                editar_despesa = dict(row)
+
     return render_template(
         "financeiro.html",
         registros=registros,
@@ -1223,6 +1245,8 @@ def financeiro():
         categorias=categorias,
         receitas_todas=[dict(row) for row in receitas_todas],
         despesas_todas=[dict(row) for row in despesas_todas],
+        editar_receita=editar_receita,
+        editar_despesa=editar_despesa,
     )
 
 
@@ -1342,6 +1366,69 @@ def salvar_receita():
     return redirect(url_for("financeiro", mes=mes_referencia))
 
 
+@app.post("/financeiro/receitas/<int:receita_id>/editar")
+@login_required
+@finance_required
+def editar_receita(receita_id):
+    grupo = clean(request.form.get("grupo", "ALT"), 50) or "ALT"
+    condominio_id = request.form.get("condominio_id", "").strip()
+    categoria = clean(request.form.get("categoria", ""), 100)
+    valor = request.form.get("valor", "")
+    data_pagamento = clean(request.form.get("data_pagamento", ""))
+    mes_referencia = clean(request.form.get("mes_referencia", datetime.now().strftime("%Y-%m")))
+    metodo_pagamento = clean(request.form.get("metodo_pagamento", ""), 50)
+    numero_documento = clean(request.form.get("numero_documento", ""), 80)
+    status = clean(request.form.get("status", "Recebido"), 50) or "Recebido"
+    observacao = clean(request.form.get("observacao", ""), 500)
+
+    try:
+        value = parse_monetary(valor)
+        datetime.strptime(mes_referencia, "%Y-%m")
+        if data_pagamento:
+            datetime.strptime(data_pagamento, "%Y-%m-%d")
+        if condominio_id:
+            condominio_id = int(condominio_id)
+            with conn() as c:
+                exists = c.execute("SELECT id FROM condominios WHERE id = ?", (condominio_id,)).fetchone()
+                if not exists:
+                    raise ValueError("Condomínio não encontrado.")
+        else:
+            condominio_id = None
+            grupo = "ALT"
+    except (ValueError, TypeError):
+        flash("Revise a receita informada: valor, mês e dados do condomínio são obrigatórios.", "error")
+        return redirect(url_for("financeiro", mes=mes_referencia))
+
+    with conn() as c:
+        anterior = c.execute(
+            "SELECT categoria, valor, mes_referencia FROM financeiro_receitas WHERE id = ?",
+            (receita_id,),
+        ).fetchone()
+        if anterior is None:
+            flash("Receita não encontrada.", "error")
+            return redirect(url_for("financeiro", mes=mes_referencia))
+
+        c.execute(
+            """UPDATE financeiro_receitas
+               SET condominio_id=?, grupo=?, categoria=?, valor=?, data_pagamento=?,
+                   mes_referencia=?, metodo_pagamento=?, numero_documento=?, status=?, observacao=?
+               WHERE id=?""",
+            (condominio_id, grupo, categoria or "Mensalidade", value,
+             data_pagamento or None, mes_referencia,
+             metodo_pagamento or "Transferência", numero_documento or "",
+             status, observacao, receita_id),
+        )
+        c.commit()
+
+    log_audit(
+        "editar_financeiro_receita",
+        f"Receita #{receita_id} alterada de R$ {float(anterior['valor']):,.2f} para R$ {value:,.2f} por {session.get('username')}",
+        session.get("username"),
+    )
+    flash("Receita atualizada com sucesso.", "ok")
+    return redirect(url_for("financeiro", mes=mes_referencia))
+
+
 @app.post("/financeiro/receitas/<int:receita_id>/excluir")
 @login_required
 @finance_required
@@ -1400,6 +1487,65 @@ def salvar_despesa():
 
     log_audit("financeiro_despesa", f"Despesa {nome} cadastrada em {parcelas} parcela(s) por {session.get('username')}", session.get('username'))
     flash(f"Despesa cadastrada com sucesso em {len(items)} parcela(s).", "ok")
+    return redirect(url_for("financeiro", mes=mes_referencia))
+
+
+@app.post("/financeiro/despesas/<int:despesa_id>/editar")
+@login_required
+@finance_required
+def editar_despesa(despesa_id):
+    nome = clean(request.form.get("nome", ""), 200)
+    categoria = clean(request.form.get("categoria", ""), 100)
+    fornecedor = clean(request.form.get("fornecedor", ""), 200)
+    valor = request.form.get("valor", "")
+    vencimento = clean(request.form.get("vencimento", ""))
+    parcelas = request.form.get("parcelas", "1") or "1"
+    mes_referencia = clean(request.form.get("mes_referencia", datetime.now().strftime("%Y-%m")))
+    metodo_pagamento = clean(request.form.get("metodo_pagamento", ""), 50)
+    numero_documento = clean(request.form.get("numero_documento", ""), 80)
+    status = clean(request.form.get("status", "Pendente"), 50) or "Pendente"
+    observacao = clean(request.form.get("observacao", ""), 500)
+
+    if not nome or not vencimento:
+        flash("Informe o nome da despesa e a data de vencimento.", "error")
+        return redirect(url_for("financeiro", mes=mes_referencia))
+
+    try:
+        value = parse_monetary(valor)
+        datetime.strptime(vencimento, "%Y-%m-%d")
+        datetime.strptime(mes_referencia, "%Y-%m")
+        parcelas = max(1, min(int(parcelas), 24))
+    except (ValueError, TypeError):
+        flash("Revise os dados da despesa: valor, vencimento e mês obrigatórios.", "error")
+        return redirect(url_for("financeiro", mes=mes_referencia))
+
+    with conn() as c:
+        anterior = c.execute(
+            "SELECT nome, valor, mes_referencia FROM financeiro_despesas WHERE id = ?",
+            (despesa_id,),
+        ).fetchone()
+        if anterior is None:
+            flash("Despesa não encontrada.", "error")
+            return redirect(url_for("financeiro", mes=mes_referencia))
+
+        c.execute(
+            """UPDATE financeiro_despesas
+               SET nome=?, categoria=?, fornecedor=?, valor=?, vencimento=?, mes_referencia=?,
+                   parcelas=?, metodo_pagamento=?, numero_documento=?, status=?, observacao=?
+               WHERE id=?""",
+            (nome, categoria or "Geral", fornecedor or "Fornecedor", value,
+             vencimento, mes_referencia, parcelas,
+             metodo_pagamento or "Transferência", numero_documento or "",
+             status, observacao, despesa_id),
+        )
+        c.commit()
+
+    log_audit(
+        "editar_financeiro_despesa",
+        f"Despesa #{despesa_id} ({nome}) alterada de R$ {float(anterior['valor']):,.2f} para R$ {value:,.2f} por {session.get('username')}",
+        session.get("username"),
+    )
+    flash("Despesa atualizada com sucesso.", "ok")
     return redirect(url_for("financeiro", mes=mes_referencia))
 
 
