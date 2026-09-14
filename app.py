@@ -113,9 +113,15 @@ class HybridRow(dict):
 
 
 def _postgres_row_factory(cursor):
-    columns = [col.name for col in cursor.description]
+    # Comandos como CREATE TABLE/CREATE INDEX não possuem
+    # cursor.description. Nesse caso, usamos uma lista vazia.
+    # Para SELECT/RETURNING, mantemos row["campo"] e row[0].
+    description = cursor.description
+    columns = [col.name for col in description] if description else []
+
     def make_row(values):
         return HybridRow(zip(columns, values))
+
     return make_row
 
 
