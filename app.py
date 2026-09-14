@@ -8,6 +8,11 @@ import secrets
 import shutil
 import sqlite3
 import os
+
+try:
+    import psycopg
+except ImportError:
+    psycopg = None
 from contextlib import contextmanager
 from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
@@ -27,10 +32,13 @@ from waitress import serve
 
 BASE = Path(__file__).resolve().parent
 
-# O Vercel executa a aplicação em um sistema de arquivos somente para leitura.
-# Por isso, arquivos temporários precisam ficar em /tmp quando estamos online.
-# No computador local, o sistema continua usando as pastas originais do projeto.
+# Ambiente:
+# - Local: mantém SQLite para não alterar o fluxo de desenvolvimento.
+# - Vercel/online: usa PostgreSQL do Neon através de DATABASE_URL.
 IS_VERCEL = os.environ.get("VERCEL") == "1"
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+IS_POSTGRES = bool(DATABASE_URL)
+
 if IS_VERCEL:
     DATA_DIR = Path("/tmp/alt_data")
     BACKUPS = Path("/tmp/alt_backups")
@@ -42,18 +50,27 @@ else:
 
 DB = DATA_DIR / "alt.db"
 PORT = int(os.environ.get("ALT_PORT", "47891"))
-MASTER_USERNAME = "albert"
-MASTER_PASSWORD = "@Gi234396"
+MASTER_USERNAME = os.environ.get("ALT_MASTER_USERNAME", "albert")
+MASTER_PASSWORD = os.environ.get("ALT_MASTER_PASSWORD", "").strip()
+
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS.mkdir(parents=True, exist_ok=True)
 PDFS.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("ALT_SECRET_KEY") or secrets.token_hex(32)
+
+# No Vercel a chave precisa ser estável entre todas as execuções.
+# Localmente, podemos gerar uma chave temporária.
+ALT_SECRET_KEY = os.environ.get("ALT_SECRET_KEY", "").strip()
+if IS_VERCEL and not ALT_SECRET_KEY:
+    raise RuntimeError("ALT_SECRET_KEY não configurada no Vercel. Cadastre essa variável de ambiente e faça um novo deploy.")
+app.secret_key = ALT_SECRET_KEY or secrets.token_hex(32)
+
 app.config.update(
     MAX_CONTENT_LENGTH=10 * 1024 * 1024,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=IS_VERCEL,
 )
 
 # No Vercel, não existe o fluxo __main__ usado pelo servidor local.
@@ -87,8 +104,68 @@ SINDICO_TIPOS = {"Morador", "Profissional"}
 GAS_TIPOS = {"Ultragás", "Administração", "Outra"}
 
 
+class HybridRow(dict):
+    """Linha que aceita row["campo"] e também row[0], como o sqlite3.Row."""
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return list(self.values())[key]
+        return super().__getitem__(key)
+
+
+def _postgres_row_factory(cursor):
+    columns = [col.name for col in cursor.description]
+    def make_row(values):
+        return HybridRow(zip(columns, values))
+    return make_row
+
+
+def _adapt_postgres_sql(sql):
+    # O sistema foi escrito originalmente com placeholders do SQLite (?).
+    # O psycopg usa %s. Também adaptamos somente as construções SQLite
+    # que aparecem no código atual.
+    sql = re.sub(r"strftime\('%Y-%m',\s*([^)]+)\)", r"TO_CHAR(\1::timestamp, 'YYYY-MM')", sql)
+    sql = sql.replace("COLLATE NOCASE", "")
+    sql = sql.replace("?", "%s")
+    return sql
+
+
+class PostgresConnection:
+    """Adaptador mínimo para manter a maior parte do código existente intacta."""
+    def __init__(self, connection):
+        self._connection = connection
+
+    def execute(self, sql, params=()):
+        return self._connection.execute(_adapt_postgres_sql(sql), params)
+
+    def executemany(self, sql, seq):
+        return self._connection.executemany(_adapt_postgres_sql(sql), seq)
+
+    def commit(self):
+        self._connection.commit()
+
+    def rollback(self):
+        self._connection.rollback()
+
+    def close(self):
+        self._connection.close()
+
+
 @contextmanager
 def conn():
+    if IS_POSTGRES:
+        if psycopg is None:
+            raise RuntimeError("O pacote psycopg não está instalado. Adicione psycopg[binary] ao requirements.txt.")
+        c = psycopg.connect(DATABASE_URL, row_factory=_postgres_row_factory)
+        wrapped = PostgresConnection(c)
+        try:
+            yield wrapped
+        except Exception:
+            c.rollback()
+            raise
+        finally:
+            c.close()
+        return
+
     database = app.config.get("DATABASE", DB)
     c = sqlite3.connect(database, timeout=10)
     c.row_factory = sqlite3.Row
@@ -101,6 +178,92 @@ def conn():
 
 
 def init_db():
+    if IS_POSTGRES:
+        if psycopg is None:
+            raise RuntimeError("O pacote psycopg não está instalado.")
+
+        with conn() as c:
+            c.execute("""CREATE TABLE IF NOT EXISTS condominios (
+                id BIGSERIAL PRIMARY KEY,
+                nome TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL,
+                dados_json TEXT NOT NULL
+            )""")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_condominios_nome ON condominios(nome)")
+            c.execute("""CREATE TABLE IF NOT EXISTS usuarios (
+                id BIGSERIAL PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'normal',
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP::text)
+            )""")
+            c.execute("""CREATE TABLE IF NOT EXISTS auditoria (
+                id BIGSERIAL PRIMARY KEY,
+                username TEXT,
+                action TEXT NOT NULL,
+                details TEXT,
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP::text)
+            )""")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_auditoria_created_at ON auditoria(created_at)")
+            c.execute("""CREATE TABLE IF NOT EXISTS financeiro_receitas (
+                id BIGSERIAL PRIMARY KEY,
+                condominio_id BIGINT,
+                grupo TEXT NOT NULL DEFAULT 'ALT',
+                categoria TEXT,
+                valor DOUBLE PRECISION NOT NULL,
+                data_pagamento TEXT,
+                mes_referencia TEXT NOT NULL,
+                metodo_pagamento TEXT,
+                numero_documento TEXT,
+                status TEXT DEFAULT 'Recebido',
+                observacao TEXT,
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP::text),
+                FOREIGN KEY(condominio_id) REFERENCES condominios(id) ON DELETE CASCADE
+            )""")
+            c.execute("""CREATE TABLE IF NOT EXISTS financeiro_despesas (
+                id BIGSERIAL PRIMARY KEY,
+                nome TEXT NOT NULL,
+                categoria TEXT,
+                fornecedor TEXT,
+                valor DOUBLE PRECISION NOT NULL,
+                vencimento TEXT NOT NULL,
+                mes_referencia TEXT NOT NULL,
+                parcelas INTEGER NOT NULL DEFAULT 1,
+                metodo_pagamento TEXT,
+                numero_documento TEXT,
+                status TEXT DEFAULT 'Pendente',
+                observacao TEXT,
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP::text)
+            )""")
+            c.execute("""CREATE TABLE IF NOT EXISTS financeiro_categorias (
+                id BIGSERIAL PRIMARY KEY,
+                nome TEXT NOT NULL,
+                tipo TEXT NOT NULL DEFAULT 'receita',
+                descricao TEXT,
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP::text)
+            )""")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_financeiro_receitas_mes ON financeiro_receitas(mes_referencia)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_financeiro_despesas_mes ON financeiro_despesas(mes_referencia)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_financeiro_categorias_tipo ON financeiro_categorias(tipo)")
+
+            if MASTER_PASSWORD:
+                master = c.execute("SELECT 1 FROM usuarios WHERE username = %s", (MASTER_USERNAME,)).fetchone()
+                if master is None:
+                    c.execute(
+                        "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(%s,%s,%s,%s)",
+                        (MASTER_USERNAME, generate_password_hash(MASTER_PASSWORD), "master", datetime.now().isoformat(timespec="seconds")),
+                    )
+
+            admin = c.execute("SELECT 1 FROM usuarios WHERE username = %s", ("admin",)).fetchone()
+            if admin is None:
+                c.execute(
+                    "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(%s,%s,%s,%s)",
+                    ("admin", generate_password_hash("admin"), "admin", datetime.now().isoformat(timespec="seconds")),
+                )
+            c.commit()
+        return
+
+    # SQLite local
     with conn() as c:
         c.execute("""CREATE TABLE IF NOT EXISTS condominios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -170,12 +333,13 @@ def init_db():
                 "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(?,?,?,?)",
                 ("admin", generate_password_hash("admin"), "admin", datetime.now().isoformat(timespec="seconds")),
             )
-        master = c.execute("SELECT 1 FROM usuarios WHERE username = ?", (MASTER_USERNAME,)).fetchone()
-        if master is None:
-            c.execute(
-                "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(?,?,?,?)",
-                (MASTER_USERNAME, generate_password_hash(MASTER_PASSWORD), "master", datetime.now().isoformat(timespec="seconds")),
-            )
+        if MASTER_PASSWORD:
+            master = c.execute("SELECT 1 FROM usuarios WHERE username = ?", (MASTER_USERNAME,)).fetchone()
+            if master is None:
+                c.execute(
+                    "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(?,?,?,?)",
+                    (MASTER_USERNAME, generate_password_hash(MASTER_PASSWORD), "master", datetime.now().isoformat(timespec="seconds")),
+                )
         c.commit()
 
     ensure_finance_schema()
@@ -185,7 +349,7 @@ def ensure_finance_schema():
     with conn() as c:
         finance_tables = {
             "financeiro_receitas": {
-                "condominio_id": "INTEGER",
+                "condominio_id": "BIGINT" if IS_POSTGRES else "INTEGER",
                 "grupo": "TEXT DEFAULT 'ALT'",
                 "categoria": "TEXT",
                 "data_pagamento": "TEXT",
@@ -206,19 +370,33 @@ def ensure_finance_schema():
                 "descricao": "TEXT",
             },
         }
-        for table_name, columns in finance_tables.items():
-            columns_existing = {row[1] for row in c.execute(f"PRAGMA table_info({table_name})").fetchall()}
-            for col_name, col_definition in columns.items():
-                if col_name not in columns_existing:
-                    c.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_definition}")
+
+        if IS_POSTGRES:
+            for table_name, columns in finance_tables.items():
+                existing = {
+                    row[0]
+                    for row in c.execute(
+                        "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
+                        (table_name,),
+                    ).fetchall()
+                }
+                for col_name, col_definition in columns.items():
+                    if col_name not in existing:
+                        c.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_definition}")
+        else:
+            for table_name, columns in finance_tables.items():
+                columns_existing = {row[1] for row in c.execute(f"PRAGMA table_info({table_name})").fetchall()}
+                for col_name, col_definition in columns.items():
+                    if col_name not in columns_existing:
+                        c.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_definition}")
+
         c.commit()
 
 
 # O Vercel importa app.py diretamente, sem executar o bloco __main__.
-# Criamos as tabelas nesse ambiente para que a função Flask possa iniciar.
-if IS_VERCEL:
-    init_db()
-
+# Em produção, o banco é o PostgreSQL persistente do Neon.
+# No local, o SQLite continua sendo inicializado normalmente.
+init_db()
 
 def clean(v, limit=5000):
     if v is None:
@@ -596,7 +774,9 @@ def collect_form(form):
 
 
 def auto_backup():
-    if not DB.exists(): return
+    # PostgreSQL/Neon é persistente; o backup local por cópia de arquivo
+    # continua existindo apenas para o SQLite.
+    if IS_POSTGRES or not DB.exists(): return
     try:
         target = BACKUPS / f"ALT-auto-{datetime.now():%Y-%m-%d_%H-%M-%S}.db"
         shutil.copy2(DB, target)
@@ -615,8 +795,15 @@ def save_condominio(d, cid=None):
             if cur.rowcount != 1:
                 return None
         else:
-            cur = c.execute("INSERT INTO condominios(nome, atualizado_em, dados_json) VALUES(?,?,?)", (d["nome"], now, payload))
-            cid = cur.lastrowid
+            if IS_POSTGRES:
+                cur = c.execute(
+                    "INSERT INTO condominios(nome, atualizado_em, dados_json) VALUES(%s,%s,%s) RETURNING id",
+                    (d["nome"], now, payload),
+                )
+                cid = cur.fetchone()["id"]
+            else:
+                cur = c.execute("INSERT INTO condominios(nome, atualizado_em, dados_json) VALUES(?,?,?)", (d["nome"], now, payload))
+                cid = cur.lastrowid
         c.commit()
     return cid
 
@@ -826,7 +1013,15 @@ def protect_posts():
 
 
 @app.get("/health")
-def health(): return jsonify(ok=True, app="ALT Gestão de Condomínios")
+def health():
+    try:
+        with conn() as c:
+            c.execute("SELECT 1").fetchone()
+        return jsonify(ok=True, app="ALT Gestão de Condomínios", database="postgresql" if IS_POSTGRES else "sqlite")
+    except Exception:
+        logging.exception("Falha no health check")
+        return jsonify(ok=False, app="ALT Gestão de Condomínios"), 500
+
 
 
 @app.get("/usuarios")
@@ -1938,7 +2133,7 @@ def importar_json():
     except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
         logging.warning("Falha na validação da importação: %s", exc)
         flash("Arquivo inválido ou sem cadastros válidos. Nenhum dado foi importado.", "error")
-    except sqlite3.Error:
+    except (sqlite3.Error, psycopg.Error if psycopg is not None else sqlite3.Error):
         logging.exception("Falha no banco durante a importação")
         flash("Não foi possível importar o arquivo. Nenhum dado foi importado.", "error")
     return redirect(url_for("index"))
