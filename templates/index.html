@@ -37,18 +37,6 @@
     </div>
   </div>
 
-  {% if current_user() and current_user().role in ['admin', 'financeiro'] %}
-  <nav class="finance-menu" aria-label="Menu financeiro">
-    <a class="is-active" href="{{ url_for('financeiro') }}">Painel</a>
-    <a href="{{ url_for('financeiro') }}#tab-receitas">Receitas</a>
-    <a href="{{ url_for('financeiro') }}#tab-despesas">Despesas</a>
-    <a href="{{ url_for('financeiro_categorias') }}">Categorias</a>
-    <a href="{{ url_for('resumo_categoria') }}">Resumo por categoria</a>
-    <a href="{{ url_for('financeiro') }}#tab-bancos">Dados bancários</a>
-    <a href="{{ url_for('relatorio_financeiro') }}">Relatório PDF</a>
-  </nav>
-  {% endif %}
-
   {% with messages=get_flashed_messages(with_categories=true) %}
     {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
   {% endwith %}

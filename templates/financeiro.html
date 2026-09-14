@@ -29,16 +29,6 @@
     </div>
   </div>
 
-  <nav class="finance-menu" aria-label="Menu financeiro">
-    <a class="is-active" href="{{ url_for('financeiro', mes=mes) }}">Painel</a>
-    <a href="#tab-receitas">Receitas</a>
-    <a href="#tab-despesas">Despesas</a>
-    <a href="{{ url_for('financeiro_categorias', mes=mes) }}">Categorias</a>
-    <a href="{{ url_for('resumo_categoria', mes=mes) }}">Resumo por categoria</a>
-    <a href="#tab-bancos">Dados bancários</a>
-    <a href="{{ url_for('relatorio_financeiro', mes=mes) }}">Relatório PDF</a>
-  </nav>
-
   {% with messages=get_flashed_messages(with_categories=true) %}
     {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
   {% endwith %}
@@ -441,23 +431,14 @@
   const tabButtons = document.querySelectorAll('.finance-tab-button');
   const tabPanels = document.querySelectorAll('.finance-tab-panel');
 
-  function activateFinanceTab(targetId) {
-    const targetButton = [...tabButtons].find((button) => button.dataset.target === targetId);
-    if (!targetButton) return;
-    tabButtons.forEach((item) => item.classList.toggle('is-active', item === targetButton));
-    tabPanels.forEach((panel) => {
-      panel.classList.toggle('is-active', panel.id === targetId);
-    });
-  }
-
   tabButtons.forEach((button) => {
     button.addEventListener('click', () => {
-      activateFinanceTab(button.dataset.target);
+      tabButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+      tabPanels.forEach((panel) => {
+        panel.classList.toggle('is-active', panel.id === button.dataset.target);
+      });
     });
   });
-
-  window.addEventListener('hashchange', () => activateFinanceTab(window.location.hash.slice(1)));
-  activateFinanceTab(window.location.hash.slice(1) || 'tab-resumo');
 
   document.querySelectorAll('[data-toggle-panel]').forEach((button) => {
     button.addEventListener('click', () => {

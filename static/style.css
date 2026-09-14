@@ -327,36 +327,6 @@ main {
     color: var(--cinza);
 }
 
-.finance-menu {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 0 0 20px;
-    padding: 8px;
-    background: #fff;
-    border: 1px solid var(--borda);
-    border-radius: 12px;
-    box-shadow: 0 6px 16px rgba(79, 44, 104, 0.04);
-}
-
-.finance-menu a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 38px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    color: var(--cinza);
-    font-size: 13px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-.finance-menu a:hover,
-.finance-menu a.is-active {
-    background: #f1eaf6;
-    color: var(--alt-roxo);
-}
-
 .finance-panel {
     overflow: hidden;
 }

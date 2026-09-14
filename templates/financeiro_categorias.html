@@ -29,16 +29,6 @@
 		</div>
 	</div>
 
-	<nav class="finance-menu" aria-label="Menu financeiro">
-		<a href="{{ url_for('financeiro', mes=mes) }}">Painel</a>
-		<a href="{{ url_for('financeiro', mes=mes) }}#tab-receitas">Receitas</a>
-		<a href="{{ url_for('financeiro', mes=mes) }}#tab-despesas">Despesas</a>
-		<a class="is-active" href="{{ url_for('financeiro_categorias', mes=mes) }}">Categorias</a>
-		<a href="{{ url_for('resumo_categoria', mes=mes) }}">Resumo por categoria</a>
-		<a href="{{ url_for('financeiro', mes=mes) }}#tab-bancos">Dados bancários</a>
-		<a href="{{ url_for('relatorio_financeiro', mes=mes) }}">Relatório PDF</a>
-	</nav>
-
 	{% with messages=get_flashed_messages(with_categories=true) %}
 		{% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
 	{% endwith %}
