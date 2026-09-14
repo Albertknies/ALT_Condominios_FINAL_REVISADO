@@ -1,72 +1,806 @@
 <!doctype html>
 <html lang="pt-BR">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ALT — Resumo por categoria</title>
-<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>ALT — Resumo por categoria</title>
+
+  <link
+    rel="icon"
+    href="{{ url_for('static', filename='favicon.ico') }}"
+  >
+
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='style.css') }}"
+  >
+
 </head>
+
+
 <body>
+
+
 <header class="brand-header">
-	<div class="brand-content">
-		<img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-		<div class="brand-info"><strong>ALT Gestão de Condomínios</strong><span>Resumo por categoria</span></div>
-	</div>
+
+  <div class="brand-content">
+
+    <img
+      class="brand-logo"
+      src="{{ url_for('static', filename='favicon.ico') }}"
+      alt="ALT"
+    >
+
+    <div class="brand-info">
+
+      <strong>
+        ALT Gestão de Condomínios
+      </strong>
+
+      <span>
+        Resumo por categoria
+      </span>
+
+    </div>
+
+  </div>
+
 </header>
 
+
+
 <main>
-	<div class="page-head">
-		<div>
-			<span class="page-kicker">Financeiro</span>
-			<h1>Resumo por categoria</h1>
-		</div>
-		<div class="header-actions">
-			<span class="user-badge">{{ current_user().username }} · {{ current_user().role }}</span>
-			<a class="btn ghost" href="{{ url_for('financeiro_categorias', mes=mes) }}">Categorias</a>
-			<a class="btn ghost" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
-			<a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
-		</div>
-	</div>
 
-	{% with messages=get_flashed_messages(with_categories=true) %}
-		{% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
-	{% endwith %}
 
-	<section class="card finance-panel">
-		<div class="list-header">
-			<div>
-				<strong>Valores por categoria</strong>
-				<small>Movimentação financeira consolidada no mês {{ mes }}.</small>
-			</div>
-		</div>
+  <!-- =========================================================
+       CABEÇALHO
+  ========================================================== -->
 
-		<div class="finance-toolbar">
-			<div class="finance-filter-group">
-				<label>Mês</label>
-				<input type="month" value="{{ mes }}" onchange="window.location.href='{{ url_for('resumo_categoria') }}?mes=' + this.value">
-			</div>
-		</div>
+  <div class="page-head">
 
-		<div class="finance-table-wrap">
-			<table class="finance-table">
-				<thead>
-					<tr><th>Tipo</th><th>Categoria</th><th>Total</th></tr>
-				</thead>
-				<tbody>
-					{% for item in resumo %}
-					<tr>
-						<td>{{ 'Receita' if item.tipo == 'receita' else 'Despesa' }}</td>
-						<td><strong>{{ item.nome }}</strong></td>
-						<td>R$ {{ '%.2f'|format(item.total) }}</td>
-					</tr>
-					{% else %}
-					<tr><td colspan="3" class="empty">Nenhuma categoria com movimentação neste mês.</td></tr>
-					{% endfor %}
-				</tbody>
-			</table>
-		</div>
-	</section>
+    <div>
+
+      <span class="page-kicker">
+        Financeiro
+      </span>
+
+      <h1>
+        Resumo por categoria
+      </h1>
+
+      <p class="page-subtitle">
+        Visualização consolidada das movimentações financeiras por categoria.
+      </p>
+
+    </div>
+
+
+    <div class="header-actions">
+
+      <span class="user-badge">
+        {{ current_user().username }}
+        ·
+        {{ current_user().role }}
+      </span>
+
+
+      <a
+        class="btn ghost"
+        href="{{ url_for('financeiro_categorias', mes=mes) }}"
+      >
+        Categorias
+      </a>
+
+
+      <a
+        class="btn ghost"
+        href="{{ url_for('financeiro', mes=mes) }}"
+      >
+        Voltar
+      </a>
+
+
+      <a
+        class="btn ghost"
+        href="{{ url_for('logout') }}"
+      >
+        Sair
+      </a>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- =========================================================
+       MENSAGENS
+  ========================================================== -->
+
+  {% with messages=get_flashed_messages(with_categories=true) %}
+
+    {% for cat,msg in messages %}
+
+      <div
+        class="flash {{ cat }}"
+        role="alert"
+      >
+        {{ msg }}
+      </div>
+
+    {% endfor %}
+
+  {% endwith %}
+
+
+
+  <!-- =========================================================
+       INDICADORES
+  ========================================================== -->
+
+  <section class="stats-grid finance-stats">
+
+
+    <div class="stat-card">
+
+      <span>
+        Categorias com movimentação
+      </span>
+
+      <strong>
+        {{ resumo|length }}
+      </strong>
+
+    </div>
+
+
+    <div class="stat-card green">
+
+      <span>
+        Receitas
+      </span>
+
+      <strong id="totalReceitas">
+        R$ 0,00
+      </strong>
+
+    </div>
+
+
+    <div class="stat-card red">
+
+      <span>
+        Despesas
+      </span>
+
+      <strong id="totalDespesas">
+        R$ 0,00
+      </strong>
+
+    </div>
+
+
+    <div class="stat-card gray">
+
+      <span>
+        Resultado
+      </span>
+
+      <strong id="resultadoCategoria">
+        R$ 0,00
+      </strong>
+
+    </div>
+
+
+  </section>
+
+
+
+  <!-- =========================================================
+       PAINEL
+  ========================================================== -->
+
+  <section class="card finance-panel">
+
+
+    <div class="list-header">
+
+      <div>
+
+        <strong>
+          Valores por categoria
+        </strong>
+
+        <small>
+          Movimentação financeira consolidada no mês {{ mes }}.
+        </small>
+
+      </div>
+
+
+      <div>
+
+        <span id="resultadoMes">
+          {{ resumo|length }} categoria(s)
+        </span>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- =======================================================
+         FILTROS
+    ======================================================== -->
+
+    <div class="finance-toolbar">
+
+
+      <div class="finance-filter-group">
+
+        <label for="mesFiltro">
+          Mês
+        </label>
+
+        <input
+          id="mesFiltro"
+          type="month"
+          value="{{ mes }}"
+        >
+
+      </div>
+
+
+
+      <div class="finance-filter-group">
+
+        <label for="tipoFiltro">
+          Tipo
+        </label>
+
+        <select id="tipoFiltro">
+
+          <option value="todos">
+            Todos
+          </option>
+
+          <option value="receita">
+            Receitas
+          </option>
+
+          <option value="despesa">
+            Despesas
+          </option>
+
+        </select>
+
+      </div>
+
+
+
+      <div class="finance-search">
+
+        <label for="categoriaSearch">
+          Buscar categoria
+        </label>
+
+        <input
+          id="categoriaSearch"
+          type="text"
+          placeholder="Nome da categoria..."
+          autocomplete="off"
+        >
+
+      </div>
+
+
+
+      <div class="finance-form-actions">
+
+        <button
+          type="button"
+          class="btn ghost"
+          id="limparFiltros"
+        >
+          Limpar filtros
+        </button>
+
+      </div>
+
+
+    </div>
+
+
+
+    <!-- =======================================================
+         TABELA
+    ======================================================== -->
+
+    <div class="finance-table-wrap">
+
+
+      <table class="finance-table">
+
+
+        <thead>
+
+          <tr>
+
+            <th>
+              Tipo
+            </th>
+
+            <th>
+              Categoria
+            </th>
+
+            <th>
+              Total
+            </th>
+
+          </tr>
+
+        </thead>
+
+
+        <tbody id="resumoTableBody">
+
+
+          {% for item in resumo %}
+
+            <tr
+              class="resumo-row"
+              data-tipo="{{ item.tipo }}"
+              data-nome="{{ item.nome }}"
+            >
+
+
+              <td>
+
+                {% if item.tipo == 'receita' %}
+
+                  <span class="finance-tag green">
+                    Receita
+                  </span>
+
+                {% else %}
+
+                  <span class="finance-tag red">
+                    Despesa
+                  </span>
+
+                {% endif %}
+
+              </td>
+
+
+
+              <td>
+
+                <strong>
+                  {{ item.nome }}
+                </strong>
+
+              </td>
+
+
+
+              <td
+                class="valor-categoria"
+                data-tipo="{{ item.tipo }}"
+                data-valor="{{ item.total }}"
+              >
+
+                R$
+                {{ '%.2f'|format(item.total)|replace('.', ',') }}
+
+              </td>
+
+
+            </tr>
+
+
+          {% else %}
+
+            <tr>
+
+              <td
+                colspan="3"
+                class="empty"
+              >
+                Nenhuma categoria com movimentação neste mês.
+              </td>
+
+            </tr>
+
+          {% endfor %}
+
+
+          <tr
+            id="semResultados"
+            style="display:none;"
+          >
+
+            <td
+              colspan="3"
+              class="empty"
+            >
+              Nenhuma categoria encontrada com os filtros selecionados.
+            </td>
+
+          </tr>
+
+
+        </tbody>
+
+
+      </table>
+
+
+    </div>
+
+
+
+    <!-- =======================================================
+         RODAPÉ DA TABELA
+    ======================================================== -->
+
+    <div
+      class="list-header"
+      style="margin-top: 15px;"
+    >
+
+      <small>
+
+        Exibindo
+        <strong id="quantidadeExibida">
+          {{ resumo|length }}
+        </strong>
+        categoria(s)
+
+      </small>
+
+    </div>
+
+
+  </section>
+
+
 </main>
+
+
+
+<script>
+
+
+  /* ==========================================================
+     ELEMENTOS
+  ========================================================== */
+
+  const mesFiltro =
+    document.getElementById(
+      'mesFiltro'
+    );
+
+
+  const tipoFiltro =
+    document.getElementById(
+      'tipoFiltro'
+    );
+
+
+  const categoriaSearch =
+    document.getElementById(
+      'categoriaSearch'
+    );
+
+
+  const limparFiltros =
+    document.getElementById(
+      'limparFiltros'
+    );
+
+
+  const rows =
+    [
+      ...document.querySelectorAll(
+        '.resumo-row'
+      )
+    ];
+
+
+  const quantidadeExibida =
+    document.getElementById(
+      'quantidadeExibida'
+    );
+
+
+  const totalReceitas =
+    document.getElementById(
+      'totalReceitas'
+    );
+
+
+  const totalDespesas =
+    document.getElementById(
+      'totalDespesas'
+    );
+
+
+  const resultadoCategoria =
+    document.getElementById(
+      'resultadoCategoria'
+    );
+
+
+  const semResultados =
+    document.getElementById(
+      'semResultados'
+    );
+
+
+
+  /* ==========================================================
+     FORMATAÇÃO MONETÁRIA
+  ========================================================== */
+
+  function formatarMoeda(valor) {
+
+    return valor.toLocaleString(
+      'pt-BR',
+      {
+        style: 'currency',
+        currency: 'BRL'
+      }
+    );
+
+  }
+
+
+
+  /* ==========================================================
+     ATUALIZAR RESUMO
+  ========================================================== */
+
+  function atualizarResumo() {
+
+
+    const tipo =
+      tipoFiltro?.value || 'todos';
+
+
+    const busca =
+      (
+        categoriaSearch?.value || ''
+      )
+      .trim()
+      .toLowerCase();
+
+
+    let quantidade =
+      0;
+
+
+    let receitas =
+      0;
+
+
+    let despesas =
+      0;
+
+
+
+    rows.forEach(
+      function (row) {
+
+
+        const rowTipo =
+          row.dataset.tipo || '';
+
+
+        const rowNome =
+          (
+            row.dataset.nome || ''
+          )
+          .toLowerCase();
+
+
+        const correspondeTipo =
+          tipo === 'todos' ||
+          rowTipo === tipo;
+
+
+        const correspondeBusca =
+          !busca ||
+          rowNome.includes(busca);
+
+
+        const mostrar =
+          correspondeTipo &&
+          correspondeBusca;
+
+
+        row.style.display =
+          mostrar ? '' : 'none';
+
+
+
+        if (mostrar) {
+
+          quantidade += 1;
+
+
+          const valorElemento =
+            row.querySelector(
+              '.valor-categoria'
+            );
+
+
+          const valor =
+            parseFloat(
+              valorElemento?.dataset.valor || '0'
+            );
+
+
+          if (rowTipo === 'receita') {
+
+            receitas += valor;
+
+          }
+
+
+          if (rowTipo === 'despesa') {
+
+            despesas += valor;
+
+          }
+
+        }
+
+      }
+    );
+
+
+
+    const resultado =
+      receitas - despesas;
+
+
+
+    if (quantidadeExibida) {
+
+      quantidadeExibida.textContent =
+        quantidade;
+
+    }
+
+
+    if (totalReceitas) {
+
+      totalReceitas.textContent =
+        formatarMoeda(receitas);
+
+    }
+
+
+    if (totalDespesas) {
+
+      totalDespesas.textContent =
+        formatarMoeda(despesas);
+
+    }
+
+
+    if (resultadoCategoria) {
+
+      resultadoCategoria.textContent =
+        formatarMoeda(resultado);
+
+    }
+
+
+    if (semResultados) {
+
+      semResultados.style.display =
+        rows.length > 0 && quantidade === 0
+          ? ''
+          : 'none';
+
+    }
+
+  }
+
+
+
+  /* ==========================================================
+     ALTERAÇÃO DO MÊS
+  ========================================================== */
+
+  mesFiltro?.addEventListener(
+    'change',
+    function () {
+
+      if (!this.value) {
+        return;
+      }
+
+
+      window.location.href =
+        "{{ url_for('resumo_categoria') }}" +
+        "?mes=" +
+        encodeURIComponent(this.value);
+
+    }
+  );
+
+
+
+  /* ==========================================================
+     FILTROS
+  ========================================================== */
+
+  tipoFiltro?.addEventListener(
+    'change',
+    atualizarResumo
+  );
+
+
+  categoriaSearch?.addEventListener(
+    'input',
+    atualizarResumo
+  );
+
+
+
+  /* ==========================================================
+     LIMPAR FILTROS
+  ========================================================== */
+
+  limparFiltros?.addEventListener(
+    'click',
+    function () {
+
+      if (tipoFiltro) {
+
+        tipoFiltro.value =
+          'todos';
+
+      }
+
+
+      if (categoriaSearch) {
+
+        categoriaSearch.value =
+          '';
+
+      }
+
+
+      atualizarResumo();
+
+    }
+  );
+
+
+
+  /* ==========================================================
+     INICIALIZAÇÃO
+  ========================================================== */
+
+  atualizarResumo();
+
+
+</script>
+
+
 </body>
 </html>

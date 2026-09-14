@@ -1,107 +1,798 @@
 <!doctype html>
 <html lang="pt-BR">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ALT — Categorias financeiras</title>
-<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>ALT — Categorias financeiras</title>
+
+  <link
+    rel="icon"
+    href="{{ url_for('static', filename='favicon.ico') }}"
+  >
+
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='style.css') }}"
+  >
+
 </head>
+
+
 <body>
+
+
 <header class="brand-header">
-	<div class="brand-content">
-		<img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-		<div class="brand-info"><strong>ALT Gestão de Condomínios</strong><span>Categorias financeiras</span></div>
-	</div>
+
+  <div class="brand-content">
+
+    <img
+      class="brand-logo"
+      src="{{ url_for('static', filename='favicon.ico') }}"
+      alt="ALT"
+    >
+
+    <div class="brand-info">
+
+      <strong>
+        ALT Gestão de Condomínios
+      </strong>
+
+      <span>
+        Categorias financeiras
+      </span>
+
+    </div>
+
+  </div>
+
 </header>
 
+
+
 <main>
-	<div class="page-head">
-		<div>
-			<span class="page-kicker">Financeiro</span>
-			<h1>Categoria financeira</h1>
-		</div>
-		<div class="header-actions">
-			<span class="user-badge">{{ current_user().username }} · {{ current_user().role }}</span>
-			<a class="btn ghost" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
-			<a class="btn ghost" href="{{ url_for('resumo_categoria', mes=mes) }}">Resumo por categoria</a>
-			<a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
-		</div>
-	</div>
 
-	{% with messages=get_flashed_messages(with_categories=true) %}
-		{% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
-	{% endwith %}
 
-	<section class="card finance-panel">
-		<div class="list-header">
-			<div>
-				<strong>Cadastro de categorias</strong>
-				<small>Organize receitas e despesas com filtros e botões de ação.</small>
-			</div>
-		</div>
+  <!-- =========================================================
+       CABEÇALHO
+  ========================================================== -->
 
-		<div class="finance-tabs">
-			<div class="finance-tabs-header">
-				<button type="button" class="finance-tab-button is-active" data-target="tab-categoria-cadastro">Cadastrar</button>
-				<button type="button" class="finance-tab-button" data-target="tab-categoria-lista">Lista</button>
-			</div>
+  <div class="page-head">
 
-			<div id="tab-categoria-cadastro" class="finance-tab-panel is-active">
-				<form class="finance-form" method="post" action="{{ url_for('salvar_categoria') }}">
-					<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-					<label>Nome da categoria
-						<input type="text" name="nome" maxlength="100" placeholder="Ex.: Condomínio, Salário, Energia" required>
-					</label>
-					<label>Tipo
-						<select name="tipo">
-							<option value="receita">Receita</option>
-							<option value="despesa">Despesa</option>
-						</select>
-					</label>
-					<label>Descrição
-						<textarea name="descricao" rows="3" maxlength="500" placeholder="Descrição da categoria"></textarea>
-					</label>
-					<div class="finance-form-actions">
-						<button type="submit" class="btn success">Salvar categoria</button>
-						<a class="btn ghost" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
-					</div>
-				</form>
-			</div>
+    <div>
 
-			<div id="tab-categoria-lista" class="finance-tab-panel">
-				<div class="finance-table-wrap">
-					<table class="finance-table">
-						<thead>
-							<tr><th>Tipo</th><th>Categoria</th><th>Descrição</th></tr>
-						</thead>
-						<tbody>
-							{% for categoria in receitas + despesas %}
-							<tr>
-								<td>{{ 'Receita' if categoria.tipo == 'receita' else 'Despesa' }}</td>
-								<td><strong>{{ categoria.nome }}</strong></td>
-								<td>{{ categoria.descricao or '—' }}</td>
-							</tr>
-							{% else %}
-							<tr><td colspan="3" class="empty">Nenhuma categoria cadastrada.</td></tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</div>
-	</section>
+      <span class="page-kicker">
+        Financeiro
+      </span>
+
+      <h1>
+        Categoria financeira
+      </h1>
+
+      <p class="page-subtitle">
+        Organize as categorias utilizadas nas receitas e despesas.
+      </p>
+
+    </div>
+
+
+    <div class="header-actions">
+
+      <span class="user-badge">
+        {{ current_user().username }}
+        ·
+        {{ current_user().role }}
+      </span>
+
+
+      <a
+        class="btn ghost"
+        href="{{ url_for('financeiro', mes=mes) }}"
+      >
+        Voltar
+      </a>
+
+
+      <a
+        class="btn ghost"
+        href="{{ url_for('resumo_categoria', mes=mes) }}"
+      >
+        Resumo por categoria
+      </a>
+
+
+      <a
+        class="btn ghost"
+        href="{{ url_for('logout') }}"
+      >
+        Sair
+      </a>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- =========================================================
+       MENSAGENS
+  ========================================================== -->
+
+  {% with messages=get_flashed_messages(with_categories=true) %}
+
+    {% for cat,msg in messages %}
+
+      <div
+        class="flash {{ cat }}"
+        role="alert"
+      >
+        {{ msg }}
+      </div>
+
+    {% endfor %}
+
+  {% endwith %}
+
+
+
+  <!-- =========================================================
+       INDICADORES
+  ========================================================== -->
+
+  <section class="stats-grid finance-stats">
+
+
+    <div class="stat-card">
+
+      <span>
+        Total de categorias
+      </span>
+
+      <strong id="totalCategorias">
+        {{ (receitas|length) + (despesas|length) }}
+      </strong>
+
+    </div>
+
+
+
+    <div class="stat-card green">
+
+      <span>
+        Categorias de receita
+      </span>
+
+      <strong>
+        {{ receitas|length }}
+      </strong>
+
+    </div>
+
+
+
+    <div class="stat-card red">
+
+      <span>
+        Categorias de despesa
+      </span>
+
+      <strong>
+        {{ despesas|length }}
+      </strong>
+
+    </div>
+
+
+
+    <div class="stat-card gray">
+
+      <span>
+        Exibidas
+      </span>
+
+      <strong id="categoriasExibidas">
+        {{ (receitas|length) + (despesas|length) }}
+      </strong>
+
+    </div>
+
+
+  </section>
+
+
+
+  <!-- =========================================================
+       PAINEL PRINCIPAL
+  ========================================================== -->
+
+  <section class="card finance-panel">
+
+
+    <div class="list-header">
+
+      <div>
+
+        <strong>
+          Cadastro de categorias
+        </strong>
+
+        <small>
+          Organize receitas e despesas com categorias padronizadas.
+        </small>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- =======================================================
+         ABAS
+    ======================================================== -->
+
+    <div class="finance-tabs">
+
+
+      <div class="finance-tabs-header">
+
+        <button
+          type="button"
+          class="finance-tab-button is-active"
+          data-target="tab-categoria-cadastro"
+        >
+          Cadastrar
+        </button>
+
+
+        <button
+          type="button"
+          class="finance-tab-button"
+          data-target="tab-categoria-lista"
+        >
+          Lista
+        </button>
+
+      </div>
+
+
+
+      <!-- =====================================================
+           ABA CADASTRO
+      ====================================================== -->
+
+      <div
+        id="tab-categoria-cadastro"
+        class="finance-tab-panel is-active"
+      >
+
+
+        <form
+          class="finance-form"
+          method="post"
+          action="{{ url_for('salvar_categoria') }}"
+        >
+
+          <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+          >
+
+
+          <label>
+
+            Nome da categoria
+
+            <input
+              type="text"
+              name="nome"
+              maxlength="100"
+              placeholder="Ex.: Condomínio, Salário, Energia"
+              required
+            >
+
+          </label>
+
+
+
+          <label>
+
+            Tipo
+
+            <select
+              name="tipo"
+              required
+            >
+
+              <option value="receita">
+                Receita
+              </option>
+
+              <option value="despesa">
+                Despesa
+              </option>
+
+            </select>
+
+          </label>
+
+
+
+          <label>
+
+            Descrição
+
+            <textarea
+              name="descricao"
+              rows="3"
+              maxlength="500"
+              placeholder="Descrição da categoria"
+            ></textarea>
+
+          </label>
+
+
+
+          <div class="finance-form-actions">
+
+            <button
+              type="submit"
+              class="btn success"
+            >
+              Salvar categoria
+            </button>
+
+
+            <a
+              class="btn ghost"
+              href="{{ url_for('financeiro', mes=mes) }}"
+            >
+              Voltar
+            </a>
+
+          </div>
+
+        </form>
+
+      </div>
+
+
+
+      <!-- =====================================================
+           ABA LISTA
+      ====================================================== -->
+
+      <div
+        id="tab-categoria-lista"
+        class="finance-tab-panel"
+      >
+
+
+        <!-- FILTROS -->
+
+        <div class="finance-toolbar">
+
+
+          <div class="finance-search">
+
+            <label for="categoriaSearch">
+              Buscar categoria
+            </label>
+
+            <input
+              type="text"
+              id="categoriaSearch"
+              placeholder="Digite o nome ou descrição..."
+              autocomplete="off"
+            >
+
+          </div>
+
+
+
+          <div class="finance-filter-group">
+
+            <label for="categoriaTipo">
+              Tipo
+            </label>
+
+            <select id="categoriaTipo">
+
+              <option value="todos">
+                Todos
+              </option>
+
+              <option value="receita">
+                Receita
+              </option>
+
+              <option value="despesa">
+                Despesa
+              </option>
+
+            </select>
+
+          </div>
+
+
+        </div>
+
+
+
+        <!-- TABELA -->
+
+        <div class="finance-table-wrap">
+
+
+          <table class="finance-table">
+
+
+            <thead>
+
+              <tr>
+
+                <th>
+                  Tipo
+                </th>
+
+                <th>
+                  Categoria
+                </th>
+
+                <th>
+                  Descrição
+                </th>
+
+              </tr>
+
+            </thead>
+
+
+            <tbody id="categoriasTableBody">
+
+
+              {% for categoria in receitas + despesas %}
+
+                <tr
+                  class="categoria-row"
+                  data-tipo="{{ categoria.tipo }}"
+                  data-search="{{ categoria.nome }} {{ categoria.descricao or '' }}"
+                >
+
+
+                  <td>
+
+                    {% if categoria.tipo == 'receita' %}
+
+                      <span class="finance-tag green">
+                        Receita
+                      </span>
+
+                    {% else %}
+
+                      <span class="finance-tag red">
+                        Despesa
+                      </span>
+
+                    {% endif %}
+
+                  </td>
+
+
+
+                  <td>
+
+                    <strong>
+                      {{ categoria.nome }}
+                    </strong>
+
+                  </td>
+
+
+
+                  <td>
+
+                    <span class="subtext">
+
+                      {{ categoria.descricao or 'Sem descrição' }}
+
+                    </span>
+
+                  </td>
+
+
+                </tr>
+
+
+              {% else %}
+
+                <tr>
+
+                  <td
+                    colspan="3"
+                    class="empty"
+                  >
+                    Nenhuma categoria cadastrada.
+                  </td>
+
+                </tr>
+
+              {% endfor %}
+
+
+              <tr
+                id="categoriasEmptyFilter"
+                style="display:none;"
+              >
+
+                <td
+                  colspan="3"
+                  class="empty"
+                >
+                  Nenhuma categoria encontrada com os filtros selecionados.
+                </td>
+
+              </tr>
+
+
+            </tbody>
+
+          </table>
+
+
+        </div>
+
+
+
+        <!-- CONTADOR -->
+
+        <div
+          class="list-header"
+          style="margin-top: 15px;"
+        >
+
+          <small>
+
+            Exibindo
+            <strong id="categoriasCount">
+              {{ (receitas|length) + (despesas|length) }}
+            </strong>
+            categoria(s)
+
+          </small>
+
+        </div>
+
+
+      </div>
+
+
+    </div>
+
+  </section>
+
+
 </main>
 
+
+
 <script>
-	const tabButtons = document.querySelectorAll('.finance-tab-button');
-	const tabPanels = document.querySelectorAll('.finance-tab-panel');
-	tabButtons.forEach((button) => {
-		button.addEventListener('click', () => {
-			tabButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-			tabPanels.forEach((panel) => panel.classList.toggle('is-active', panel.id === button.dataset.target));
-		});
-	});
+
+
+  /* ==========================================================
+     ABAS
+  ========================================================== */
+
+  const tabButtons =
+    document.querySelectorAll(
+      '.finance-tab-button'
+    );
+
+
+  const tabPanels =
+    document.querySelectorAll(
+      '.finance-tab-panel'
+    );
+
+
+  tabButtons.forEach(
+    function (button) {
+
+      button.addEventListener(
+        'click',
+        function () {
+
+          tabButtons.forEach(
+            function (item) {
+
+              item.classList.toggle(
+                'is-active',
+                item === button
+              );
+
+            }
+          );
+
+
+          tabPanels.forEach(
+            function (panel) {
+
+              panel.classList.toggle(
+                'is-active',
+                panel.id === button.dataset.target
+              );
+
+            }
+          );
+
+        }
+      );
+
+    }
+  );
+
+
+
+  /* ==========================================================
+     FILTRO DE CATEGORIAS
+  ========================================================== */
+
+  const categoriaSearch =
+    document.getElementById(
+      'categoriaSearch'
+    );
+
+
+  const categoriaTipo =
+    document.getElementById(
+      'categoriaTipo'
+    );
+
+
+  const categoriaRows =
+    [
+      ...document.querySelectorAll(
+        '.categoria-row'
+      )
+    ];
+
+
+  const categoriasCount =
+    document.getElementById(
+      'categoriasCount'
+    );
+
+
+  const categoriasExibidas =
+    document.getElementById(
+      'categoriasExibidas'
+    );
+
+
+  const categoriasEmptyFilter =
+    document.getElementById(
+      'categoriasEmptyFilter'
+    );
+
+
+
+  function filtrarCategorias() {
+
+
+    const busca =
+      (
+        categoriaSearch?.value || ''
+      )
+      .trim()
+      .toLowerCase();
+
+
+    const tipo =
+      categoriaTipo?.value || 'todos';
+
+
+    let exibidas = 0;
+
+
+
+    categoriaRows.forEach(
+      function (row) {
+
+
+        const texto =
+          (
+            row.dataset.search || ''
+          )
+          .toLowerCase();
+
+
+        const rowTipo =
+          row.dataset.tipo || '';
+
+
+        const correspondeBusca =
+          !busca ||
+          texto.includes(busca);
+
+
+        const correspondeTipo =
+          tipo === 'todos' ||
+          rowTipo === tipo;
+
+
+        const mostrar =
+          correspondeBusca &&
+          correspondeTipo;
+
+
+        row.style.display =
+          mostrar ? '' : 'none';
+
+
+        if (mostrar) {
+
+          exibidas += 1;
+
+        }
+
+      }
+    );
+
+
+
+    if (categoriasCount) {
+
+      categoriasCount.textContent =
+        exibidas;
+
+    }
+
+
+    if (categoriasExibidas) {
+
+      categoriasExibidas.textContent =
+        exibidas;
+
+    }
+
+
+    if (categoriasEmptyFilter) {
+
+      categoriasEmptyFilter.style.display =
+        exibidas === 0 &&
+        categoriaRows.length > 0
+          ? ''
+          : 'none';
+
+    }
+
+  }
+
+
+
+  categoriaSearch?.addEventListener(
+    'input',
+    filtrarCategorias
+  );
+
+
+  categoriaTipo?.addEventListener(
+    'change',
+    filtrarCategorias
+  );
+
+
+  filtrarCategorias();
+
+
 </script>
+
+
 </body>
 </html>

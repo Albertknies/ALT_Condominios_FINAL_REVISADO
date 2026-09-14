@@ -4,459 +4,2290 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ALT — Painel financeiro</title>
+
 <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<style>
+:root {
+  --purple-dark: #24104f;
+  --purple: #4b1f78;
+  --purple-light: #eee5f7;
+  --purple-border: #e1d5ed;
+
+  --green: #16a34a;
+  --green-dark: #087a35;
+  --green-light: #e2f7e8;
+
+  --red: #dc2626;
+  --red-light: #fee2e2;
+
+  --yellow: #b77900;
+  --yellow-light: #fff4c9;
+
+  --text: #21183b;
+  --muted: #6f6680;
+
+  --white: #ffffff;
+  --background: #f8f8fb;
+
+  --shadow: 0 5px 20px rgba(52, 27, 84, .07);
+  --radius: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top right, rgba(143, 103, 190, .08), transparent 32%),
+    var(--background);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.brand-header {
+  min-height: 125px;
+  background: linear-gradient(105deg, #48206e 0%, #8b3b94 50%, #aeb4f0 100%);
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 18px rgba(40, 20, 70, .12);
+}
+
+.brand-content {
+  width: 100%;
+  max-width: 1450px;
+  margin: 0 auto;
+  padding: 22px 38px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.brand-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  background: white;
+  border-radius: 17px;
+  padding: 6px;
+}
+
+.brand-info {
+  display: flex;
+  flex-direction: column;
+  color: white;
+}
+
+.brand-info strong {
+  font-size: 29px;
+  line-height: 1.1;
+  letter-spacing: -.5px;
+}
+
+.brand-info span {
+  margin-top: 7px;
+  font-size: 18px;
+  opacity: .95;
+}
+
+main {
+  width: calc(100% - 64px);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 0 60px;
+}
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 25px;
+}
+
+.page-kicker {
+  display: inline-block;
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 5px;
+}
+
+.page-head h1 {
+  margin: 0;
+  color: var(--purple-dark);
+  font-size: 38px;
+  letter-spacing: -.8px;
+}
+
+.page-subtitle {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.header-actions.compact {
+  justify-content: flex-end;
+}
+
+.user-badge {
+  border: 1px solid var(--purple-border);
+  background: white;
+  color: var(--purple);
+  padding: 12px 16px;
+  border-radius: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btn {
+  border: 1px solid var(--purple-border);
+  background: white;
+  color: var(--purple-dark);
+  padding: 12px 17px;
+  border-radius: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  transition: .18s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(55, 27, 85, .10);
+}
+
+.btn.small {
+  padding: 9px 13px;
+  font-size: 13px;
+}
+
+.btn.ghost {
+  background: white;
+  color: var(--purple-dark);
+}
+
+.btn.success {
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+}
+
+.btn.success:hover {
+  background: var(--green-dark);
+}
+
+.btn.danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+}
+
+.flash {
+  padding: 14px 17px;
+  border-radius: 13px;
+  margin-bottom: 20px;
+  background: white;
+  border: 1px solid var(--purple-border);
+}
+
+.flash.success {
+  border-color: #b7e7c5;
+  background: #effaf2;
+  color: #166534;
+}
+
+.flash.error,
+.flash.danger {
+  border-color: #fecaca;
+  background: #fff1f1;
+  color: #991b1b;
+}
+
+.flash.warning {
+  border-color: #f6dc83;
+  background: #fff9dc;
+  color: #8a5a00;
+}
+
+/* RESUMO */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.stat-card {
+  background: white;
+  border: 1px solid var(--purple-border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--shadow);
+  min-height: 115px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.stat-card span {
+  color: var(--muted);
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.stat-card strong {
+  font-size: 27px;
+  color: var(--purple-dark);
+}
+
+.stat-card.red {
+  background: linear-gradient(135deg, #fff 0%, #fff8f8 100%);
+}
+
+.stat-card.red strong {
+  color: var(--red);
+}
+
+.stat-card.green {
+  background: linear-gradient(135deg, #fff 0%, #f1fcf4 100%);
+}
+
+.stat-card.green strong {
+  color: var(--green-dark);
+}
+
+.stat-card.gray {
+  background: linear-gradient(135deg, #fff 0%, #f4f3f7 100%);
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--purple-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.finance-panel {
+  overflow: hidden;
+}
+
+.list-header {
+  padding: 22px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid #eee8f3;
+}
+
+.list-header strong {
+  color: var(--purple-dark);
+  font-size: 18px;
+}
+
+.list-header small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ABAS */
+
+.finance-tabs {
+  width: 100%;
+}
+
+.finance-tabs-header {
+  display: flex;
+  gap: 8px;
+  padding: 18px 24px 0;
+  border-bottom: 1px solid #eee8f3;
+  overflow-x: auto;
+}
+
+.finance-tab-button {
+  border: 1px solid var(--purple-border);
+  background: white;
+  color: var(--purple-dark);
+  padding: 12px 17px;
+  border-radius: 12px 12px 0 0;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.finance-tab-button:hover {
+  background: var(--purple-light);
+}
+
+.finance-tab-button.is-active {
+  background: var(--purple);
+  color: white;
+  border-color: var(--purple);
+}
+
+.finance-tab-panel {
+  display: none;
+  padding: 24px;
+}
+
+.finance-tab-panel.is-active {
+  display: block;
+}
+
+/* FILTROS */
+
+.finance-toolbar {
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) 180px 180px 180px;
+  gap: 13px;
+  margin-bottom: 22px;
+  padding: 18px;
+  background: #fbfaff;
+  border: 1px solid #ece5f3;
+  border-radius: 16px;
+}
+
+.finance-search,
+.finance-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.finance-toolbar label {
+  color: var(--purple-dark);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.finance-toolbar input,
+.finance-toolbar select {
+  width: 100%;
+  height: 43px;
+  border: 1px solid var(--purple-border);
+  background: white;
+  border-radius: 11px;
+  padding: 0 13px;
+  color: var(--text);
+  outline: none;
+}
+
+.finance-toolbar input:focus,
+.finance-toolbar select:focus {
+  border-color: #9c78bb;
+  box-shadow: 0 0 0 3px rgba(113, 57, 150, .08);
+}
+
+/* TABELAS */
+
+.finance-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #ebe5f1;
+  border-radius: 15px;
+}
+
+.finance-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.finance-table th {
+  background: #f8f5fb;
+  color: var(--purple-dark);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 14px 15px;
+  border-bottom: 1px solid #e8e0ef;
+}
+
+.finance-table td {
+  padding: 15px;
+  border-bottom: 1px solid #eeeaf2;
+  color: #4c455a;
+  vertical-align: middle;
+}
+
+.finance-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.finance-table tbody tr:hover {
+  background: #fcfbfe;
+}
+
+.finance-table td strong {
+  color: var(--purple-dark);
+}
+
+.subtext {
+  margin-top: 4px;
+  color: #888092;
+  font-size: 12px;
+}
+
+.finance-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.finance-tag.green {
+  background: var(--green-light);
+  color: #16703b;
+}
+
+.finance-tag.red {
+  background: var(--red-light);
+  color: #a31919;
+}
+
+.finance-status {
+  display: inline-flex;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.finance-status.completo {
+  background: var(--green-light);
+  color: #166534;
+}
+
+.finance-status.parcial {
+  background: var(--yellow-light);
+  color: #8a5a00;
+}
+
+.finance-status.pendente {
+  background: var(--red-light);
+  color: #991b1b;
+}
+
+.empty {
+  text-align: center;
+  padding: 30px !important;
+  color: var(--muted) !important;
+}
+
+/* SUBTOOLBAR */
+
+.finance-subtoolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+/* FORMULÁRIOS */
+
+.finance-panel-form {
+  margin-top: 20px;
+  padding: 22px;
+  background: #fbfaff;
+  border: 1px solid var(--purple-border);
+  border-radius: 16px;
+}
+
+.finance-panel-form.hidden {
+  display: none;
+}
+
+.finance-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+}
+
+.finance-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--purple-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.finance-form input,
+.finance-form select,
+.finance-form textarea {
+  width: 100%;
+  border: 1px solid var(--purple-border);
+  background: white;
+  border-radius: 11px;
+  padding: 11px 13px;
+  color: var(--text);
+  outline: none;
+}
+
+.finance-form input,
+.finance-form select {
+  height: 43px;
+}
+
+.finance-form textarea {
+  resize: vertical;
+  min-height: 85px;
+}
+
+.finance-form input:focus,
+.finance-form select:focus,
+.finance-form textarea:focus {
+  border-color: #9c78bb;
+  box-shadow: 0 0 0 3px rgba(113, 57, 150, .08);
+}
+
+.finance-form label:nth-last-child(2),
+.finance-form label:nth-last-child(1) {
+  grid-column: span 2;
+}
+
+.finance-form-actions {
+  grid-column: span 2;
+  display: flex;
+  gap: 10px;
+  padding-top: 5px;
+}
+
+/* RESPONSIVO */
+
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .finance-toolbar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .brand-content {
+    padding: 18px 20px;
+  }
+
+  .brand-logo {
+    width: 62px;
+    height: 62px;
+  }
+
+  .brand-info strong {
+    font-size: 21px;
+  }
+
+  .brand-info span {
+    font-size: 14px;
+  }
+
+  main {
+    width: calc(100% - 28px);
+    padding-top: 22px;
+  }
+
+  .page-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .page-head h1 {
+    font-size: 31px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .btn {
+    flex: 1;
+  }
+
+  .user-badge {
+    width: 100%;
+    text-align: center;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .list-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-actions.compact {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .finance-tab-panel {
+    padding: 16px;
+  }
+
+  .finance-form {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-form label:nth-last-child(2),
+  .finance-form label:nth-last-child(1),
+  .finance-form-actions {
+    grid-column: span 1;
+  }
+
+  .finance-subtoolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .finance-subtoolbar .btn {
+    width: 100%;
+  }
+}
+</style>
 </head>
+
 <body>
+
 <header class="brand-header">
   <div class="brand-content">
-    <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-    <div class="brand-info"><strong>ALT Gestão de Condomínios</strong><span>Painel financeiro</span></div>
+    <img
+      class="brand-logo"
+      src="{{ url_for('static', filename='favicon.ico') }}"
+      alt="ALT"
+    >
+
+    <div class="brand-info">
+      <strong>ALT Gestão de Condomínios</strong>
+      <span>Gestão local</span>
+    </div>
   </div>
 </header>
 
 <main>
+
   <div class="page-head">
     <div>
       <span class="page-kicker">Fase 2</span>
       <h1>Painel financeiro</h1>
-      <p class="page-subtitle">Acompanhamento dos dados bancários dos condomínios.</p>
+      <p class="page-subtitle">
+        Controle de receitas, despesas e dados financeiros.
+      </p>
     </div>
+
     <div class="header-actions">
-      <span class="user-badge">{{ current_user().username }} · {{ current_user().role }}</span>
-      <a class="btn ghost" href="{{ url_for('index') }}">Home</a>
-      <a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
+      <span class="user-badge">
+        {{ current_user().username }} · {{ current_user().role }}
+      </span>
+
+      <a class="btn ghost" href="{{ url_for('index') }}">
+        Home
+      </a>
+
+      <a class="btn ghost" href="{{ url_for('logout') }}">
+        Sair
+      </a>
     </div>
   </div>
 
+
   {% with messages=get_flashed_messages(with_categories=true) %}
-    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+    {% for cat,msg in messages %}
+      <div class="flash {{ cat }}">{{ msg }}</div>
+    {% endfor %}
   {% endwith %}
 
+
+  <!-- CARDS PRINCIPAIS -->
+
   <section class="stats-grid finance-stats">
+
     <div class="stat-card">
       <span>Receita</span>
-      <strong>R$ {{ '%.2f'|format(summary.receita) }}</strong>
+      <strong>
+        R$ {{ '%.2f'|format(summary.receita)|replace('.', ',') }}
+      </strong>
     </div>
+
     <div class="stat-card red">
       <span>Despesa</span>
-      <strong>R$ {{ '%.2f'|format(summary.despesa) }}</strong>
+      <strong>
+        R$ {{ '%.2f'|format(summary.despesa)|replace('.', ',') }}
+      </strong>
     </div>
+
     <div class="stat-card green">
       <span>Saldo</span>
-      <strong>R$ {{ '%.2f'|format(summary.saldo) }}</strong>
+      <strong>
+        R$ {{ '%.2f'|format(summary.saldo)|replace('.', ',') }}
+      </strong>
     </div>
+
     <div class="stat-card gray">
       <span>Condomínios</span>
       <strong>{{ total }}</strong>
     </div>
+
   </section>
+
+
+  <!-- PAINEL FINANCEIRO -->
 
   <section class="card finance-panel">
+
     <div class="list-header">
+
       <div>
         <strong>ALT — Receita, despesas e saldo</strong>
-        <small>Controle financeiro da empresa: entrada dos condomínios e despesas mensais da ALT.</small>
+
+        <small>
+          Controle financeiro da empresa e dos condomínios.
+        </small>
       </div>
+
       <div class="header-actions compact">
-        <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes) }}">Atualizar</a>
-        <a class="btn ghost small" href="{{ url_for('relatorio_financeiro', mes=mes) }}">Relatório PDF</a>
+
+        <a
+          class="btn ghost small"
+          href="{{ url_for('financeiro', mes=mes) }}"
+        >
+          Atualizar
+        </a>
+
+        <a
+          class="btn ghost small"
+          href="{{ url_for('relatorio_financeiro', mes=mes) }}"
+        >
+          Relatório PDF
+        </a>
+
       </div>
+
     </div>
+
 
     <div class="finance-tabs" data-tabs>
+
+      <!-- ABAS -->
+
       <div class="finance-tabs-header">
-        <button type="button" class="finance-tab-button is-active" data-target="tab-resumo">Resumo</button>
-        <button type="button" class="finance-tab-button" data-target="tab-receitas">Receitas</button>
-        <button type="button" class="finance-tab-button" data-target="tab-despesas">Despesas</button>
-        <button type="button" class="finance-tab-button" data-target="tab-categorias">Categorias</button>
-        <button type="button" class="finance-tab-button" data-target="tab-bancos">Dados bancários</button>
+
+        <button
+          type="button"
+          class="finance-tab-button is-active"
+          data-target="tab-resumo"
+        >
+          Resumo
+        </button>
+
+        <button
+          type="button"
+          class="finance-tab-button"
+          data-target="tab-receitas"
+        >
+          Receitas
+        </button>
+
+        <button
+          type="button"
+          class="finance-tab-button"
+          data-target="tab-despesas"
+        >
+          Despesas
+        </button>
+
+        <button
+          type="button"
+          class="finance-tab-button"
+          data-target="tab-categorias"
+        >
+          Categorias
+        </button>
+
+        <button
+          type="button"
+          class="finance-tab-button"
+          data-target="tab-bancos"
+        >
+          Dados bancários
+        </button>
+
       </div>
 
-      <div id="tab-resumo" class="finance-tab-panel is-active">
+
+      <!-- RESUMO -->
+
+      <div
+        id="tab-resumo"
+        class="finance-tab-panel is-active"
+      >
+
         <div class="finance-toolbar">
+
           <div class="finance-search">
-            <label>Busca</label>
-            <input type="text" id="financeSearch" placeholder="ALT, condomínio, fornecedor ou categoria">
+
+            <label for="financeSearch">
+              Buscar
+            </label>
+
+            <input
+              type="text"
+              id="financeSearch"
+              placeholder="ALT, condomínio, fornecedor ou categoria"
+            >
+
           </div>
+
+
           <div class="finance-filter-group">
-            <label>Origem</label>
+
+            <label for="financeOrigin">
+              Origem
+            </label>
+
             <select id="financeOrigin">
-              <option value="todos">Todos</option>
-              <option value="ALT">ALT</option>
-              <option value="condominio">Condomínios</option>
+
+              <option value="todos">
+                Todos
+              </option>
+
+              <option value="ALT">
+                ALT
+              </option>
+
+              <option value="condominio">
+                Condomínios
+              </option>
+
             </select>
+
           </div>
+
+
           <div class="finance-filter-group">
-            <label>Tipo</label>
+
+            <label for="financeType">
+              Tipo
+            </label>
+
             <select id="financeType">
-              <option value="todos">Todos</option>
-              <option value="receita">Receita</option>
-              <option value="despesa">Despesa</option>
+
+              <option value="todos">
+                Todos
+              </option>
+
+              <option value="receita">
+                Receita
+              </option>
+
+              <option value="despesa">
+                Despesa
+              </option>
+
             </select>
+
           </div>
+
+
           <div class="finance-filter-group">
-            <label>Mês</label>
-            <input type="month" value="{{ mes }}" id="financeMonth" onchange="window.location.href='{{ url_for('financeiro') }}?mes=' + this.value">
+
+            <label for="financeMonth">
+              Mês
+            </label>
+
+            <input
+              type="month"
+              value="{{ mes }}"
+              id="financeMonth"
+              onchange="window.location.href='{{ url_for('financeiro') }}?mes=' + this.value"
+            >
+
           </div>
+
         </div>
 
+
         <div class="finance-table-wrap">
+
           <table class="finance-table finance-summary-table">
+
             <thead>
-              <tr><th>Tipo</th><th>Origem</th><th>Nome</th><th>Valor</th><th>Status</th></tr>
+
+              <tr>
+                <th>Tipo</th>
+                <th>Origem</th>
+                <th>Nome</th>
+                <th>Valor</th>
+                <th>Status</th>
+              </tr>
+
             </thead>
+
             <tbody>
+
               {% for item in summary.receitas %}
-              <tr class="finance-row" data-type="receita" data-origin="{{ 'ALT' if item.grupo == 'ALT' else 'condominio' }}" data-search="{{ (item.nome_exibicao or '') ~ ' ' ~(item.categoria or '') ~ ' ' ~(item.observacao or '') }} {{ item.grupo or '' }}" data-status="{{ item.status or 'Recebido' }}">
-                <td><span class="finance-tag green">Receita</span></td>
-                <td>{{ item.tipo_label }}</td>
-                <td><strong>{{ item.nome_exibicao }}</strong><div class="subtext">{{ item.categoria or 'Sem categoria' }}</div></td>
-                <td>R$ {{ '%.2f'|format(item.valor) }}</td>
-                <td>{{ item.status or 'Recebido' }}</td>
+
+              <tr
+                class="finance-row"
+                data-type="receita"
+                data-origin="{{ 'ALT' if item.grupo == 'ALT' else 'condominio' }}"
+                data-search="{{ (item.nome_exibicao or '') ~ ' ' ~(item.categoria or '') ~ ' ' ~(item.observacao or '') }} {{ item.grupo or '' }}"
+                data-status="{{ item.status or 'Recebido' }}"
+              >
+
+                <td>
+                  <span class="finance-tag green">
+                    Receita
+                  </span>
+                </td>
+
+                <td>
+                  {{ item.tipo_label }}
+                </td>
+
+                <td>
+                  <strong>
+                    {{ item.nome_exibicao }}
+                  </strong>
+
+                  <div class="subtext">
+                    {{ item.categoria or 'Sem categoria' }}
+                  </div>
+                </td>
+
+                <td>
+                  R$ {{ '%.2f'|format(item.valor)|replace('.', ',') }}
+                </td>
+
+                <td>
+                  {{ item.status or 'Recebido' }}
+                </td>
+
               </tr>
+
               {% endfor %}
+
+
               {% for item in summary.despesas %}
-              <tr class="finance-row" data-type="despesa" data-origin="ALT" data-search="{{ (item.nome or '') ~ ' ' ~(item.categoria or '') ~ ' ' ~(item.fornecedor or '') ~ ' ' ~(item.observacao or '') }}" data-status="{{ item.status or 'Pendente' }}">
-                <td><span class="finance-tag red">Despesa</span></td>
-                <td>ALT</td>
-                <td><strong>{{ item.nome }}</strong><div class="subtext">{{ item.categoria or 'Sem categoria' }} · {{ item.fornecedor or 'Fornecedor não informado' }}</div></td>
-                <td>R$ {{ '%.2f'|format(item.valor) }}</td>
-                <td>{{ item.status or 'Pendente' }}</td>
+
+              <tr
+                class="finance-row"
+                data-type="despesa"
+                data-origin="ALT"
+                data-search="{{ (item.nome or '') ~ ' ' ~(item.categoria or '') ~ ' ' ~(item.fornecedor or '') ~ ' ' ~(item.observacao or '') }}"
+                data-status="{{ item.status or 'Pendente' }}"
+              >
+
+                <td>
+                  <span class="finance-tag red">
+                    Despesa
+                  </span>
+                </td>
+
+                <td>
+                  ALT
+                </td>
+
+                <td>
+
+                  <strong>
+                    {{ item.nome }}
+                  </strong>
+
+                  <div class="subtext">
+                    {{ item.categoria or 'Sem categoria' }}
+                    ·
+                    {{ item.fornecedor or 'Fornecedor não informado' }}
+                  </div>
+
+                </td>
+
+                <td>
+                  R$ {{ '%.2f'|format(item.valor)|replace('.', ',') }}
+                </td>
+
+                <td>
+                  {{ item.status or 'Pendente' }}
+                </td>
+
               </tr>
+
               {% else %}
-              <tr><td colspan="5" class="empty">Nenhuma operação cadastrada para este mês.</td></tr>
+
+              <tr>
+                <td colspan="5" class="empty">
+                  Nenhuma operação cadastrada para este mês.
+                </td>
+              </tr>
+
               {% endfor %}
+
             </tbody>
+
           </table>
+
         </div>
+
       </div>
 
-      <div id="tab-receitas" class="finance-tab-panel">
+
+      <!-- RECEITAS -->
+
+      <div
+        id="tab-receitas"
+        class="finance-tab-panel"
+      >
+
         <div class="finance-subtoolbar">
-          <button class="btn success small" data-toggle-panel="panel-receita-form">Cadastrar receita</button>
-          <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+
+          <button
+            class="btn success small"
+            data-toggle-panel="panel-receita-form"
+          >
+            + Cadastrar receita
+          </button>
+
+          <a
+            class="btn ghost small"
+            href="{{ url_for('financeiro', mes=mes) }}"
+          >
+            Voltar
+          </a>
+
         </div>
 
+
         <div class="finance-table-wrap">
+
           <table class="finance-table">
+
             <thead>
-              <tr><th>Mês</th><th>Origem</th><th>Categoria</th><th>Valor</th><th>Status</th><th></th></tr>
+
+              <tr>
+                <th>Mês</th>
+                <th>Origem</th>
+                <th>Categoria</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+
             </thead>
+
             <tbody>
+
               {% for item in receitas_todas %}
+
               <tr>
-                <td>{{ item.mes_referencia }}</td>
-                <td>{{ item.condominio or item.grupo or 'ALT' }}</td>
-                <td>{{ item.categoria or 'Sem categoria' }}</td>
-                <td>R$ {{ '%.2f'|format(item.valor) }}</td>
-                <td>{{ item.status or 'Recebido' }}</td>
+
                 <td>
-                  <form method="post" action="{{ url_for('excluir_receita', receita_id=item.id, mes=mes) }}" onsubmit="return confirm('Excluir esta receita?');">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn danger small">Excluir</button>
+                  {{ item.mes_referencia }}
+                </td>
+
+                <td>
+                  {{ item.condominio or item.grupo or 'ALT' }}
+                </td>
+
+                <td>
+                  {{ item.categoria or 'Sem categoria' }}
+                </td>
+
+                <td>
+                  R$ {{ '%.2f'|format(item.valor)|replace('.', ',') }}
+                </td>
+
+                <td>
+                  {{ item.status or 'Recebido' }}
+                </td>
+
+                <td>
+
+                  <form
+                    method="post"
+                    action="{{ url_for('excluir_receita', receita_id=item.id, mes=mes) }}"
+                    onsubmit="return confirm('Excluir esta receita?');"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token() }}"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn danger small"
+                    >
+                      Excluir
+                    </button>
+
                   </form>
+
+                </td>
+
+              </tr>
+
+              {% else %}
+
+              <tr>
+                <td colspan="6" class="empty">
+                  Nenhuma receita cadastrada.
                 </td>
               </tr>
-              {% else %}
-              <tr><td colspan="6" class="empty">Nenhuma receita cadastrada.</td></tr>
+
               {% endfor %}
+
             </tbody>
+
           </table>
+
         </div>
 
-        <div id="panel-receita-form" class="finance-panel-form hidden">
-          <form class="finance-form" method="post" action="{{ url_for('salvar_receita') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Origem
+
+        <!-- FORM RECEITA -->
+
+        <div
+          id="panel-receita-form"
+          class="finance-panel-form hidden"
+        >
+
+          <form
+            class="finance-form"
+            method="post"
+            action="{{ url_for('salvar_receita') }}"
+          >
+
+            <input
+              type="hidden"
+              name="csrf_token"
+              value="{{ csrf_token() }}"
+            >
+
+
+            <label>
+              Origem
+
               <select name="grupo" required>
-                <option value="ALT">ALT</option>
-                <option value="Condomínio">Condomínio</option>
+
+                <option value="ALT">
+                  ALT
+                </option>
+
+                <option value="Condomínio">
+                  Condomínio
+                </option>
+
               </select>
+
             </label>
-            <label>Condomínio
+
+
+            <label>
+              Condomínio
+
               <select name="condominio_id">
-                <option value="">Selecione</option>
+
+                <option value="">
+                  Selecione
+                </option>
+
                 {% for cond in condominios %}
-                <option value="{{ cond.id }}">{{ cond.nome }}</option>
+
+                <option value="{{ cond.id }}">
+                  {{ cond.nome }}
+                </option>
+
                 {% endfor %}
+
               </select>
+
             </label>
-            <label>Categoria
-              <input type="text" name="categoria" maxlength="100" placeholder="Mensalidade, taxa, multa...">
+
+
+            <label>
+              Categoria
+
+              <input
+                type="text"
+                name="categoria"
+                maxlength="100"
+                placeholder="Mensalidade, taxa, multa..."
+              >
+
             </label>
-            <label>Valor
-              <input type="number" step="0.01" min="0.01" name="valor" placeholder="0.00" required>
+
+
+            <label>
+              Valor
+
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                name="valor"
+                placeholder="0,00"
+                required
+              >
+
             </label>
-            <label>Data do recebimento
-              <input type="date" name="data_pagamento">
+
+
+            <label>
+              Data do recebimento
+
+              <input
+                type="date"
+                name="data_pagamento"
+              >
+
             </label>
-            <label>Mês de referência
-              <input type="month" name="mes_referencia" value="{{ mes }}" required>
+
+
+            <label>
+              Mês de referência
+
+              <input
+                type="month"
+                name="mes_referencia"
+                value="{{ mes }}"
+                required
+              >
+
             </label>
-            <label>Método
+
+
+            <label>
+              Método
+
               <select name="metodo_pagamento">
-                <option value="Transferência">Transferência</option>
-                <option value="Pix">Pix</option>
-                <option value="Dinheiro">Dinheiro</option>
-                <option value="Cheque">Cheque</option>
+
+                <option value="Transferência">
+                  Transferência
+                </option>
+
+                <option value="Pix">
+                  Pix
+                </option>
+
+                <option value="Dinheiro">
+                  Dinheiro
+                </option>
+
+                <option value="Cheque">
+                  Cheque
+                </option>
+
               </select>
+
             </label>
-            <label>Documento / Nº
-              <input type="text" name="numero_documento" maxlength="80" placeholder="Recibo, boleto, comprovante...">
+
+
+            <label>
+              Documento / Nº
+
+              <input
+                type="text"
+                name="numero_documento"
+                maxlength="80"
+                placeholder="Recibo, boleto, comprovante..."
+              >
+
             </label>
-            <label>Status
+
+
+            <label>
+              Status
+
               <select name="status">
-                <option value="Recebido">Recebido</option>
-                <option value="Pendente">Pendente</option>
-                <option value="Em atraso">Em atraso</option>
+
+                <option value="Recebido">
+                  Recebido
+                </option>
+
+                <option value="Pendente">
+                  Pendente
+                </option>
+
+                <option value="Em atraso">
+                  Em atraso
+                </option>
+
               </select>
+
             </label>
-            <label>Observação
-              <textarea name="observacao" rows="3" maxlength="500" placeholder="Pagamento mensal do condomínio"></textarea>
+
+
+            <label>
+              Observação
+
+              <textarea
+                name="observacao"
+                rows="3"
+                maxlength="500"
+                placeholder="Pagamento mensal do condomínio"
+              ></textarea>
+
             </label>
+
+
             <div class="finance-form-actions">
-              <button type="submit" class="btn success">Salvar receita</button>
-              <button type="button" class="btn ghost" data-close-panel="panel-receita-form">Voltar</button>
+
+              <button
+                type="submit"
+                class="btn success"
+              >
+                Salvar receita
+              </button>
+
+              <button
+                type="button"
+                class="btn ghost"
+                data-close-panel="panel-receita-form"
+              >
+                Voltar
+              </button>
+
             </div>
+
           </form>
+
         </div>
+
       </div>
 
-      <div id="tab-despesas" class="finance-tab-panel">
+
+      <!-- DESPESAS -->
+
+      <div
+        id="tab-despesas"
+        class="finance-tab-panel"
+      >
+
         <div class="finance-subtoolbar">
-          <button class="btn danger small" data-toggle-panel="panel-despesa-form">Cadastrar despesa</button>
-          <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+
+          <button
+            class="btn danger small"
+            data-toggle-panel="panel-despesa-form"
+          >
+            + Cadastrar despesa
+          </button>
+
+          <a
+            class="btn ghost small"
+            href="{{ url_for('financeiro', mes=mes) }}"
+          >
+            Voltar
+          </a>
+
         </div>
 
+
         <div class="finance-table-wrap">
+
           <table class="finance-table">
+
             <thead>
-              <tr><th>Mês</th><th>Despesa</th><th>Categoria</th><th>Fornecedor</th><th>Valor</th><th>Status</th><th></th></tr>
+
+              <tr>
+                <th>Mês</th>
+                <th>Despesa</th>
+                <th>Categoria</th>
+                <th>Fornecedor</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+
             </thead>
+
             <tbody>
+
               {% for item in despesas_todas %}
+
               <tr>
-                <td>{{ item.mes_referencia }}</td>
-                <td><strong>{{ item.nome }}</strong><div class="subtext">Vencimento: {{ item.vencimento }}</div></td>
-                <td>{{ item.categoria or 'Sem categoria' }}</td>
-                <td>{{ item.fornecedor or 'Não informado' }}</td>
-                <td>R$ {{ '%.2f'|format(item.valor) }}</td>
-                <td>{{ item.status or 'Pendente' }}</td>
+
                 <td>
-                  <form method="post" action="{{ url_for('excluir_despesa', despesa_id=item.id, mes=mes) }}" onsubmit="return confirm('Excluir esta despesa?');">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn danger small">Excluir</button>
+                  {{ item.mes_referencia }}
+                </td>
+
+                <td>
+
+                  <strong>
+                    {{ item.nome }}
+                  </strong>
+
+                  <div class="subtext">
+                    Vencimento: {{ item.vencimento }}
+                  </div>
+
+                </td>
+
+                <td>
+                  {{ item.categoria or 'Sem categoria' }}
+                </td>
+
+                <td>
+                  {{ item.fornecedor or 'Não informado' }}
+                </td>
+
+                <td>
+                  R$ {{ '%.2f'|format(item.valor)|replace('.', ',') }}
+                </td>
+
+                <td>
+                  {{ item.status or 'Pendente' }}
+                </td>
+
+                <td>
+
+                  <form
+                    method="post"
+                    action="{{ url_for('excluir_despesa', despesa_id=item.id, mes=mes) }}"
+                    onsubmit="return confirm('Excluir esta despesa?');"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token() }}"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn danger small"
+                    >
+                      Excluir
+                    </button>
+
                   </form>
+
+                </td>
+
+              </tr>
+
+              {% else %}
+
+              <tr>
+                <td colspan="7" class="empty">
+                  Nenhuma despesa cadastrada.
                 </td>
               </tr>
-              {% else %}
-              <tr><td colspan="7" class="empty">Nenhuma despesa cadastrada.</td></tr>
+
               {% endfor %}
+
             </tbody>
+
           </table>
+
         </div>
 
-        <div id="panel-despesa-form" class="finance-panel-form hidden">
-          <form class="finance-form" method="post" action="{{ url_for('salvar_despesa') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Nome da despesa
-              <input type="text" name="nome" maxlength="200" placeholder="Ex.: Internet, salário, aluguel" required>
+
+        <!-- FORM DESPESA -->
+
+        <div
+          id="panel-despesa-form"
+          class="finance-panel-form hidden"
+        >
+
+          <form
+            class="finance-form"
+            method="post"
+            action="{{ url_for('salvar_despesa') }}"
+          >
+
+            <input
+              type="hidden"
+              name="csrf_token"
+              value="{{ csrf_token() }}"
+            >
+
+
+            <label>
+              Nome da despesa
+
+              <input
+                type="text"
+                name="nome"
+                maxlength="200"
+                placeholder="Ex.: Internet, salário, aluguel"
+                required
+              >
+
             </label>
-            <label>Categoria
-              <input type="text" name="categoria" maxlength="100" placeholder="Operacional, pessoal, aluguel...">
+
+
+            <label>
+              Categoria
+
+              <input
+                type="text"
+                name="categoria"
+                maxlength="100"
+                placeholder="Operacional, pessoal, aluguel..."
+              >
+
             </label>
-            <label>Fornecedor
-              <input type="text" name="fornecedor" maxlength="200" placeholder="Nome do fornecedor">
+
+
+            <label>
+              Fornecedor
+
+              <input
+                type="text"
+                name="fornecedor"
+                maxlength="200"
+                placeholder="Nome do fornecedor"
+              >
+
             </label>
-            <label>Valor
-              <input type="number" step="0.01" min="0.01" name="valor" placeholder="0.00" required>
+
+
+            <label>
+              Valor
+
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                name="valor"
+                placeholder="0,00"
+                required
+              >
+
             </label>
-            <label>Data de vencimento
-              <input type="date" name="vencimento" required>
+
+
+            <label>
+              Data de vencimento
+
+              <input
+                type="date"
+                name="vencimento"
+                required
+              >
+
             </label>
-            <label>Quantidade de parcelas
-              <input type="number" name="parcelas" min="1" max="24" value="1" required>
+
+
+            <label>
+              Quantidade de parcelas
+
+              <input
+                type="number"
+                name="parcelas"
+                min="1"
+                max="24"
+                value="1"
+                required
+              >
+
             </label>
-            <label>Mês de referência
-              <input type="month" name="mes_referencia" value="{{ mes }}" required>
+
+
+            <label>
+              Mês de referência
+
+              <input
+                type="month"
+                name="mes_referencia"
+                value="{{ mes }}"
+                required
+              >
+
             </label>
-            <label>Método
+
+
+            <label>
+              Método
+
               <select name="metodo_pagamento">
-                <option value="Transferência">Transferência</option>
-                <option value="Pix">Pix</option>
-                <option value="Dinheiro">Dinheiro</option>
-                <option value="Cheque">Cheque</option>
+
+                <option value="Transferência">
+                  Transferência
+                </option>
+
+                <option value="Pix">
+                  Pix
+                </option>
+
+                <option value="Dinheiro">
+                  Dinheiro
+                </option>
+
+                <option value="Cheque">
+                  Cheque
+                </option>
+
               </select>
+
             </label>
-            <label>Documento / Nº
-              <input type="text" name="numero_documento" maxlength="80" placeholder="NF, boleto, recibo...">
+
+
+            <label>
+              Documento / Nº
+
+              <input
+                type="text"
+                name="numero_documento"
+                maxlength="80"
+                placeholder="NF, boleto, recibo..."
+              >
+
             </label>
-            <label>Status
+
+
+            <label>
+              Status
+
               <select name="status">
-                <option value="Pendente">Pendente</option>
-                <option value="Pago">Pago</option>
-                <option value="Em atraso">Em atraso</option>
+
+                <option value="Pendente">
+                  Pendente
+                </option>
+
+                <option value="Pago">
+                  Pago
+                </option>
+
+                <option value="Em atraso">
+                  Em atraso
+                </option>
+
               </select>
+
             </label>
-            <label>Observação
-              <textarea name="observacao" rows="3" maxlength="500" placeholder="Despesa recorrente"></textarea>
+
+
+            <label>
+              Observação
+
+              <textarea
+                name="observacao"
+                rows="3"
+                maxlength="500"
+                placeholder="Despesa recorrente"
+              ></textarea>
+
             </label>
+
+
             <div class="finance-form-actions">
-              <button type="submit" class="btn danger">Salvar despesa</button>
-              <button type="button" class="btn ghost" data-close-panel="panel-despesa-form">Voltar</button>
+
+              <button
+                type="submit"
+                class="btn danger"
+              >
+                Salvar despesa
+              </button>
+
+              <button
+                type="button"
+                class="btn ghost"
+                data-close-panel="panel-despesa-form"
+              >
+                Voltar
+              </button>
+
             </div>
+
           </form>
+
         </div>
+
       </div>
 
-      <div id="tab-categorias" class="finance-tab-panel">
+
+      <!-- CATEGORIAS -->
+
+      <div
+        id="tab-categorias"
+        class="finance-tab-panel"
+      >
+
         <div class="finance-subtoolbar">
-          <button class="btn ghost small" data-toggle-panel="panel-categoria-form">Cadastrar categoria</button>
-          <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+
+          <button
+            class="btn ghost small"
+            data-toggle-panel="panel-categoria-form"
+          >
+            + Cadastrar categoria
+          </button>
+
+          <a
+            class="btn ghost small"
+            href="{{ url_for('financeiro', mes=mes) }}"
+          >
+            Voltar
+          </a>
+
         </div>
 
+
         <div class="finance-table-wrap">
+
           <table class="finance-table">
+
             <thead>
-              <tr><th>Categoria</th><th>Tipo</th><th>Descrição</th><th></th></tr>
-            </thead>
-            <tbody>
-              {% for item in categorias %}
+
               <tr>
-                <td><strong>{{ item.nome }}</strong></td>
-                <td>{{ 'Receita' if item.tipo == 'receita' else 'Despesa' }}</td>
-                <td>{{ item.descricao or 'Sem descrição' }}</td>
+                <th>Categoria</th>
+                <th>Tipo</th>
+                <th>Descrição</th>
+                <th></th>
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              {% for item in categorias %}
+
+              <tr>
+
                 <td>
-                  <form method="post" action="{{ url_for('excluir_categoria', categoria_id=item.id, mes=mes) }}" onsubmit="return confirm('Excluir esta categoria?');">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn danger small">Excluir</button>
+                  <strong>
+                    {{ item.nome }}
+                  </strong>
+                </td>
+
+                <td>
+
+                  {% if item.tipo == 'receita' %}
+
+                    <span class="finance-tag green">
+                      Receita
+                    </span>
+
+                  {% else %}
+
+                    <span class="finance-tag red">
+                      Despesa
+                    </span>
+
+                  {% endif %}
+
+                </td>
+
+                <td>
+                  {{ item.descricao or 'Sem descrição' }}
+                </td>
+
+                <td>
+
+                  <form
+                    method="post"
+                    action="{{ url_for('excluir_categoria', categoria_id=item.id, mes=mes) }}"
+                    onsubmit="return confirm('Excluir esta categoria?');"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token() }}"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn danger small"
+                    >
+                      Excluir
+                    </button>
+
                   </form>
+
+                </td>
+
+              </tr>
+
+              {% else %}
+
+              <tr>
+                <td colspan="4" class="empty">
+                  Nenhuma categoria cadastrada.
                 </td>
               </tr>
-              {% else %}
-              <tr><td colspan="4" class="empty">Nenhuma categoria cadastrada.</td></tr>
+
               {% endfor %}
+
             </tbody>
+
           </table>
+
         </div>
 
-        <div id="panel-categoria-form" class="finance-panel-form hidden">
-          <form class="finance-form" method="post" action="{{ url_for('salvar_categoria') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Nome da categoria
-              <input type="text" name="nome" maxlength="100" placeholder="Ex.: Condomínio, Aluguel, Energia..." required>
+
+        <!-- FORM CATEGORIA -->
+
+        <div
+          id="panel-categoria-form"
+          class="finance-panel-form hidden"
+        >
+
+          <form
+            class="finance-form"
+            method="post"
+            action="{{ url_for('salvar_categoria') }}"
+          >
+
+            <input
+              type="hidden"
+              name="csrf_token"
+              value="{{ csrf_token() }}"
+            >
+
+
+            <label>
+              Nome da categoria
+
+              <input
+                type="text"
+                name="nome"
+                maxlength="100"
+                placeholder="Ex.: Condomínio, Aluguel, Energia..."
+                required
+              >
+
             </label>
-            <label>Tipo
+
+
+            <label>
+              Tipo
+
               <select name="tipo">
-                <option value="receita">Receita</option>
-                <option value="despesa">Despesa</option>
+
+                <option value="receita">
+                  Receita
+                </option>
+
+                <option value="despesa">
+                  Despesa
+                </option>
+
               </select>
+
             </label>
-            <label>Descrição
-              <textarea name="descricao" rows="3" maxlength="500" placeholder="Descrição da categoria"></textarea>
+
+
+            <label>
+              Descrição
+
+              <textarea
+                name="descricao"
+                rows="3"
+                maxlength="500"
+                placeholder="Descrição da categoria"
+              ></textarea>
+
             </label>
+
+
             <div class="finance-form-actions">
-              <button type="submit" class="btn success">Salvar categoria</button>
-              <button type="button" class="btn ghost" data-close-panel="panel-categoria-form">Voltar</button>
+
+              <button
+                type="submit"
+                class="btn success"
+              >
+                Salvar categoria
+              </button>
+
+              <button
+                type="button"
+                class="btn ghost"
+                data-close-panel="panel-categoria-form"
+              >
+                Voltar
+              </button>
+
             </div>
+
           </form>
+
         </div>
+
       </div>
 
-      <div id="tab-bancos" class="finance-tab-panel">
+
+      <!-- DADOS BANCÁRIOS -->
+
+      <div
+        id="tab-bancos"
+        class="finance-tab-panel"
+      >
+
         <div class="finance-subtoolbar">
-          <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+
+          <a
+            class="btn ghost small"
+            href="{{ url_for('financeiro', mes=mes) }}"
+          >
+            Voltar
+          </a>
+
         </div>
+
+
         <div class="finance-table-wrap">
+
           <table class="finance-table">
+
             <thead>
-              <tr><th>Condomínio</th><th>Banco</th><th>Agência</th><th>Conta</th><th>Status</th><th></th></tr>
-            </thead>
-            <tbody>
-              {% for registro in registros %}
+
               <tr>
-                <td><strong>{{ registro.nome }}</strong></td>
-                <td>{{ registro.banco or 'Não informado' }}</td>
-                <td>{{ registro.agencia or 'Não informado' }}</td>
-                <td>{{ registro.conta or 'Não informado' }}</td>
-                <td><span class="finance-status {{ registro.status }}">{% if registro.status == 'completo' %}Completo{% elif registro.status == 'parcial' %}Parcial{% else %}Pendente{% endif %}</span></td>
-                <td><a class="btn ghost small" href="{{ url_for('editar', cid=registro.id) }}">Abrir cadastro</a></td>
+                <th>Condomínio</th>
+                <th>Banco</th>
+                <th>Agência</th>
+                <th>Conta</th>
+                <th>Status</th>
+                <th></th>
               </tr>
+
+            </thead>
+
+            <tbody>
+
+              {% for registro in registros %}
+
+              <tr>
+
+                <td>
+                  <strong>
+                    {{ registro.nome }}
+                  </strong>
+                </td>
+
+                <td>
+                  {{ registro.banco or 'Não informado' }}
+                </td>
+
+                <td>
+                  {{ registro.agencia or 'Não informado' }}
+                </td>
+
+                <td>
+                  {{ registro.conta or 'Não informado' }}
+                </td>
+
+                <td>
+
+                  <span class="finance-status {{ registro.status }}">
+
+                    {% if registro.status == 'completo' %}
+
+                      Completo
+
+                    {% elif registro.status == 'parcial' %}
+
+                      Parcial
+
+                    {% else %}
+
+                      Pendente
+
+                    {% endif %}
+
+                  </span>
+
+                </td>
+
+                <td>
+
+                  <a
+                    class="btn ghost small"
+                    href="{{ url_for('editar', cid=registro.id) }}"
+                  >
+                    Abrir cadastro
+                  </a>
+
+                </td>
+
+              </tr>
+
               {% else %}
-              <tr><td colspan="6" class="empty">Nenhum condomínio cadastrado.</td></tr>
+
+              <tr>
+
+                <td colspan="6" class="empty">
+                  Nenhum condomínio cadastrado.
+                </td>
+
+              </tr>
+
               {% endfor %}
+
             </tbody>
+
           </table>
+
         </div>
+
       </div>
+
     </div>
+
   </section>
+
 </main>
 
+
 <script>
-  const financeSearch = document.getElementById('financeSearch');
-  const financeOrigin = document.getElementById('financeOrigin');
-  const financeType = document.getElementById('financeType');
-  const financeRows = [...document.querySelectorAll('.finance-row')];
 
-  function applyFinanceFilters() {
-    const query = (financeSearch?.value || '').trim().toLowerCase();
-    const origin = financeOrigin?.value || 'todos';
-    const type = financeType?.value || 'todos';
-    let visible = 0;
+const financeSearch =
+  document.getElementById('financeSearch');
 
-    financeRows.forEach((row) => {
-      const text = (row.dataset.search || '').toLowerCase();
-      const rowOrigin = row.dataset.origin || 'todos';
-      const rowType = row.dataset.type || 'todos';
-      const matchesText = !query || text.includes(query);
-      const matchesOrigin = origin === 'todos' || rowOrigin === origin;
-      const matchesType = type === 'todos' || rowType === type;
-      const visibleRow = matchesText && matchesOrigin && matchesType;
-      row.style.display = visibleRow ? '' : 'none';
-      if (visibleRow) visible += 1;
-    });
+const financeOrigin =
+  document.getElementById('financeOrigin');
 
-    if (financeRows.length) {
-      const emptyState = financeRows[0].parentElement.querySelector('.empty');
-      if (emptyState) emptyState.style.display = visible ? 'none' : '';
+const financeType =
+  document.getElementById('financeType');
+
+const financeRows =
+  [...document.querySelectorAll('.finance-row')];
+
+
+function applyFinanceFilters() {
+
+  const query =
+    (financeSearch?.value || '')
+      .trim()
+      .toLowerCase();
+
+  const origin =
+    financeOrigin?.value || 'todos';
+
+  const type =
+    financeType?.value || 'todos';
+
+  let visible = 0;
+
+
+  financeRows.forEach((row) => {
+
+    const text =
+      (row.dataset.search || '')
+        .toLowerCase();
+
+    const rowOrigin =
+      row.dataset.origin || 'todos';
+
+    const rowType =
+      row.dataset.type || 'todos';
+
+
+    const matchesText =
+      !query ||
+      text.includes(query);
+
+
+    const matchesOrigin =
+      origin === 'todos' ||
+      rowOrigin === origin;
+
+
+    const matchesType =
+      type === 'todos' ||
+      rowType === type;
+
+
+    const visibleRow =
+      matchesText &&
+      matchesOrigin &&
+      matchesType;
+
+
+    row.style.display =
+      visibleRow ? '' : 'none';
+
+
+    if (visibleRow) {
+      visible += 1;
     }
+
+  });
+
+
+  if (financeRows.length) {
+
+    const emptyState =
+      financeRows[0]
+        .parentElement
+        .querySelector('.empty');
+
+
+    if (emptyState) {
+
+      emptyState.style.display =
+        visible ? 'none' : '';
+
+    }
+
   }
 
-  financeSearch?.addEventListener('input', applyFinanceFilters);
-  financeOrigin?.addEventListener('change', applyFinanceFilters);
-  financeType?.addEventListener('change', applyFinanceFilters);
+}
 
-  const tabButtons = document.querySelectorAll('.finance-tab-button');
-  const tabPanels = document.querySelectorAll('.finance-tab-panel');
 
-  tabButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      tabButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-      tabPanels.forEach((panel) => {
-        panel.classList.toggle('is-active', panel.id === button.dataset.target);
-      });
+financeSearch?.addEventListener(
+  'input',
+  applyFinanceFilters
+);
+
+
+financeOrigin?.addEventListener(
+  'change',
+  applyFinanceFilters
+);
+
+
+financeType?.addEventListener(
+  'change',
+  applyFinanceFilters
+);
+
+
+/* ABAS */
+
+const tabButtons =
+  document.querySelectorAll(
+    '.finance-tab-button'
+  );
+
+
+const tabPanels =
+  document.querySelectorAll(
+    '.finance-tab-panel'
+  );
+
+
+tabButtons.forEach((button) => {
+
+  button.addEventListener('click', () => {
+
+    tabButtons.forEach((item) => {
+
+      item.classList.toggle(
+        'is-active',
+        item === button
+      );
+
     });
+
+
+    tabPanels.forEach((panel) => {
+
+      panel.classList.toggle(
+        'is-active',
+        panel.id === button.dataset.target
+      );
+
+    });
+
   });
 
-  document.querySelectorAll('[data-toggle-panel]').forEach((button) => {
+});
+
+
+/* ABRIR FORMULÁRIOS */
+
+document
+  .querySelectorAll('[data-toggle-panel]')
+  .forEach((button) => {
+
     button.addEventListener('click', () => {
-      const target = document.getElementById(button.dataset.togglePanel);
+
+      const target =
+        document.getElementById(
+          button.dataset.togglePanel
+        );
+
+
       if (target) {
-        target.classList.remove('hidden');
+
+        target.classList.remove(
+          'hidden'
+        );
+
+        target.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+
       }
+
     });
+
   });
 
-  document.querySelectorAll('[data-close-panel]').forEach((button) => {
+
+/* FECHAR FORMULÁRIOS */
+
+document
+  .querySelectorAll('[data-close-panel]')
+  .forEach((button) => {
+
     button.addEventListener('click', () => {
-      const target = document.getElementById(button.dataset.closePanel);
+
+      const target =
+        document.getElementById(
+          button.dataset.closePanel
+        );
+
+
       if (target) {
-        target.classList.add('hidden');
+
+        target.classList.add(
+          'hidden'
+        );
+
       }
+
     });
+
   });
+
+
+/* FILTROS INICIAIS */
+
+applyFinanceFilters();
+
 </script>
+
 </body>
 </html>
