@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 import shutil
 
-from app import app, conn, create_user, init_db, save_condominio, authenticate_user, get_condominio_alert_status, build_report_rows
+from app import app, conn, create_user, init_db, save_condominio, authenticate_user, get_condominio_alert_status, build_report_rows, get_finance_summary
 
 
 class AppSmokeTests(unittest.TestCase):
@@ -122,6 +122,19 @@ class AppSmokeTests(unittest.TestCase):
         users_page = self.client.get('/usuarios', follow_redirects=True)
         self.assertEqual(users_page.status_code, 200)
         self.assertIn('não tem acesso administrativo', users_page.get_data(as_text=True))
+
+    def test_only_master_user_can_access_import_and_export(self):
+        admin_login = self.client.post('/login', data={'username': 'admin', 'password': 'admin'}, follow_redirects=True)
+        self.assertEqual(admin_login.status_code, 200)
+        self.assertEqual(self.client.get('/importar', follow_redirects=True).status_code, 200)
+        self.assertIn('Apenas o usuário master', self.client.get('/exportar-json', follow_redirects=True).get_data(as_text=True))
+
+        create_user('albert', 'senha-segura', 'master', 'senha-segura')
+        self.client.get('/logout')
+        master_login = self.client.post('/login', data={'username': 'albert', 'password': 'senha-segura'}, follow_redirects=True)
+        self.assertEqual(master_login.status_code, 200)
+        self.assertEqual(self.client.get('/importar').status_code, 200)
+        self.assertEqual(self.client.get('/exportar-json').status_code, 200)
 
     def test_finance_user_can_create_category_and_view_summary(self):
         create_user('financeiro', 'financeiro123', 'financeiro', 'financeiro123')
@@ -427,7 +440,23 @@ class AppSmokeTests(unittest.TestCase):
         self.assertIn('application/pdf', response.headers.get('Content-Type', ''))
         self.assertTrue(response.data.startswith(b'%PDF'))
 
-    def test_finance_tabs_list_all_records_and_can_delete_them(self):
+    def test_finance_summary_filters_income_and_expenses_by_date_range(self):
+        with conn() as c:
+            c.execute("INSERT INTO financeiro_receitas(grupo, valor, data_pagamento, mes_referencia) VALUES(?,?,?,?)", ("ALT", 100, "2026-09-05", "2026-09"))
+            c.execute("INSERT INTO financeiro_receitas(grupo, valor, data_pagamento, mes_referencia) VALUES(?,?,?,?)", ("ALT", 900, "2026-10-05", "2026-10"))
+            c.execute("INSERT INTO financeiro_despesas(nome, valor, vencimento, mes_referencia) VALUES(?,?,?,?)", ("Internet", 40, "2026-09-20", "2026-09"))
+            c.execute("INSERT INTO financeiro_despesas(nome, valor, vencimento, mes_referencia) VALUES(?,?,?,?)", ("Aluguel", 500, "2026-10-01", "2026-10"))
+            c.commit()
+
+        summary = get_finance_summary("2026-09", "2026-09-01", "2026-09-30")
+
+        self.assertEqual(summary["receita"], 100)
+        self.assertEqual(summary["despesa"], 40)
+        self.assertEqual(summary["saldo"], 60)
+        self.assertEqual(summary["data_inicio"], "2026-09-01")
+        self.assertEqual(summary["data_fim"], "2026-09-30")
+
+    def test_finance_tabs_filter_records_by_period_and_can_delete_them(self):
         create_user('financeiro', 'financeiro123', 'financeiro', 'financeiro123')
         self.client.post('/login', data={'username': 'financeiro', 'password': 'financeiro123'}, follow_redirects=True)
 
@@ -455,8 +484,8 @@ class AppSmokeTests(unittest.TestCase):
 
         dashboard = self.client.get('/financeiro?mes=2026-09')
         content = dashboard.get_data(as_text=True)
-        self.assertIn('Energia antiga', content)
-        self.assertIn('Mensalidade', content)
+        self.assertIn('Nenhuma receita no período selecionado.', content)
+        self.assertIn('Nenhuma despesa no período selecionado.', content)
         self.assertIn('Categoria antiga', content)
 
         with conn() as c:

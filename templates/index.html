@@ -24,12 +24,14 @@
       <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }} · {{ current_user().role if current_user() else 'sem acesso' }}</span>
       <a class="btn ghost" href="{{ url_for('carteiras') }}">Carteiras</a>
       <a class="btn success" href="{{ url_for('novo') }}">Novo cadastro</a>
+      {% if is_master_user() %}
       <a class="btn secondary" href="{{ url_for('importar') }}">Importar</a>
       <a class="btn ghost" href="{{ url_for('exportar_json') }}">Exportar</a>
-      {% if current_user() and current_user().role in ['admin', 'financeiro'] %}
+      {% endif %}
+      {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
       <a class="btn ghost" href="{{ url_for('financeiro') }}">Financeiro</a>
       {% endif %}
-      {% if current_user() and current_user().role == 'admin' %}
+      {% if current_user() and current_user().role in ['admin', 'master'] %}
       <a class="btn ghost" href="{{ url_for('usuarios') }}">Usuários</a>
       <a class="btn ghost" href="{{ url_for('auditoria') }}">Relatório de acesso</a>
       {% endif %}
@@ -54,6 +56,7 @@
       <small>Vínculo por síndico.</small>
     </a>
 
+    {% if is_master_user() %}
     <a class="home-card" href="{{ url_for('importar') }}">
       <span class="home-card-icon">↑</span>
       <strong>Importar</strong>
@@ -65,8 +68,9 @@
       <strong>Exportar</strong>
       <small>Gerar backup seguro.</small>
     </a>
+    {% endif %}
 
-    {% if current_user() and current_user().role in ['admin', 'financeiro'] %}
+    {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
     <a class="home-card" href="{{ url_for('financeiro') }}">
       <span class="home-card-icon">$</span>
       <strong>Financeiro</strong>

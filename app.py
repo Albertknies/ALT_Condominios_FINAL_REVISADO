@@ -30,6 +30,8 @@ DB = BASE / "data" / "alt.db"
 BACKUPS = BASE / "backups"
 PDFS = BASE / "PDFs"
 PORT = int(os.environ.get("ALT_PORT", "47891"))
+MASTER_USERNAME = "albert"
+MASTER_PASSWORD = "@Gi234396"
 DB.parent.mkdir(exist_ok=True)
 BACKUPS.mkdir(exist_ok=True)
 PDFS.mkdir(exist_ok=True)
@@ -150,6 +152,12 @@ def init_db():
             c.execute(
                 "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(?,?,?,?)",
                 ("admin", generate_password_hash("admin"), "admin", datetime.now().isoformat(timespec="seconds")),
+            )
+        master = c.execute("SELECT 1 FROM usuarios WHERE username = ?", (MASTER_USERNAME,)).fetchone()
+        if master is None:
+            c.execute(
+                "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(?,?,?,?)",
+                (MASTER_USERNAME, generate_password_hash(MASTER_PASSWORD), "master", datetime.now().isoformat(timespec="seconds")),
             )
         c.commit()
 
@@ -276,13 +284,32 @@ def month_date(month_text, day):
     return date(year, month, target_day)
 
 
-def get_finance_summary(month_text):
+def get_finance_period(month_text, start_text=None, end_text=None):
+    """Returns a valid financial period, defaulting to the selected month."""
     month_text = clean(month_text) or datetime.now().strftime("%Y-%m")
+    try:
+        first_day = datetime.strptime(month_text, "%Y-%m").date().replace(day=1)
+    except ValueError:
+        first_day = datetime.now().date().replace(day=1)
+        month_text = first_day.strftime("%Y-%m")
+
+    next_month = month_add(month_text, 1)
+    last_day = datetime.strptime(next_month, "%Y-%m").date().replace(day=1) - timedelta(days=1)
+    start_date = parse_date_value(start_text) or first_day
+    end_date = parse_date_value(end_text) or last_day
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+    return month_text, start_date.isoformat(), end_date.isoformat()
+
+
+def get_finance_summary(month_text, start_text=None, end_text=None):
+    month_text, data_inicio, data_fim = get_finance_period(month_text, start_text, end_text)
+    receita_data = "COALESCE(NULLIF(r.data_pagamento, ''), r.mes_referencia || '-01')"
     with conn() as c:
-        receita_total = c.execute("SELECT COALESCE(SUM(valor), 0) FROM financeiro_receitas WHERE mes_referencia = ?", (month_text,)).fetchone()[0] or 0
-        despesa_total = c.execute("SELECT COALESCE(SUM(valor), 0) FROM financeiro_despesas WHERE mes_referencia = ?", (month_text,)).fetchone()[0] or 0
-        receitas = c.execute("SELECT r.id, r.condominio_id, c.nome AS condominio, r.grupo, r.categoria, r.valor, r.data_pagamento, r.metodo_pagamento, r.numero_documento, r.status, r.mes_referencia, r.observacao, r.created_at FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id WHERE r.mes_referencia = ? ORDER BY r.created_at DESC", (month_text,)).fetchall()
-        despesas = c.execute("SELECT * FROM financeiro_despesas WHERE mes_referencia = ? ORDER BY vencimento DESC, id DESC", (month_text,)).fetchall()
+        receita_total = c.execute(f"SELECT COALESCE(SUM(r.valor), 0) FROM financeiro_receitas r WHERE {receita_data} BETWEEN ? AND ?", (data_inicio, data_fim)).fetchone()[0] or 0
+        despesa_total = c.execute("SELECT COALESCE(SUM(valor), 0) FROM financeiro_despesas WHERE vencimento BETWEEN ? AND ?", (data_inicio, data_fim)).fetchone()[0] or 0
+        receitas = c.execute(f"SELECT r.id, r.condominio_id, c.nome AS condominio, r.grupo, r.categoria, r.valor, r.data_pagamento, r.metodo_pagamento, r.numero_documento, r.status, r.mes_referencia, r.observacao, r.created_at FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id WHERE {receita_data} BETWEEN ? AND ? ORDER BY {receita_data} DESC, r.id DESC", (data_inicio, data_fim)).fetchall()
+        despesas = c.execute("SELECT * FROM financeiro_despesas WHERE vencimento BETWEEN ? AND ? ORDER BY vencimento DESC, id DESC", (data_inicio, data_fim)).fetchall()
     receitas_formatted = []
     for row in receitas:
         item = dict(row)
@@ -291,6 +318,9 @@ def get_finance_summary(month_text):
         receitas_formatted.append(item)
     return {
         "mes": month_text,
+        "data_inicio": data_inicio,
+        "data_fim": data_fim,
+        "periodo_label": f"{datetime.strptime(data_inicio, '%Y-%m-%d').strftime('%d/%m/%Y')} a {datetime.strptime(data_fim, '%Y-%m-%d').strftime('%d/%m/%Y')}",
         "receita": float(receita_total),
         "despesa": float(despesa_total),
         "saldo": float(receita_total) - float(despesa_total),
@@ -637,7 +667,7 @@ def create_user(username, password, role="normal", password_confirm=None):
     if password_confirm is not None and str(password) != str(password_confirm):
         raise ValueError("As senhas não conferem.")
     role = clean(role).lower() if role else "normal"
-    if role not in {"admin", "normal", "financeiro"}:
+    if role not in {"admin", "normal", "financeiro", "master"}:
         raise ValueError("Perfil inválido.")
     with conn() as c:
         existing = c.execute("SELECT id FROM usuarios WHERE username = ?", (username,)).fetchone()
@@ -717,7 +747,7 @@ def admin_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         user = current_user()
-        if not user or user.get("role") != "admin":
+        if not user or user.get("role") not in {"admin", "master"}:
             flash("Este perfil não tem acesso administrativo.", "error")
             return redirect(url_for("index"))
         return view(*args, **kwargs)
@@ -728,15 +758,31 @@ def finance_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         user = current_user()
-        if not user or user.get("role") not in {"admin", "financeiro"}:
+        if not user or user.get("role") not in {"admin", "financeiro", "master"}:
             flash("Este perfil não tem acesso financeiro.", "error")
             return redirect(url_for("index"))
         return view(*args, **kwargs)
     return wrapped
 
 
+def master_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        user = current_user()
+        if not user or user.get("username") != MASTER_USERNAME or user.get("role") != "master":
+            flash("Apenas o usuário master pode importar ou exportar dados.", "error")
+            return redirect(url_for("index"))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def is_master_user(user=None):
+    user = user or current_user()
+    return bool(user and user.get("username") == MASTER_USERNAME and user.get("role") == "master")
+
+
 @app.context_processor
-def inject_helpers(): return {"csrf_token": csrf_token, "current_user": current_user}
+def inject_helpers(): return {"csrf_token": csrf_token, "current_user": current_user, "is_master_user": is_master_user}
 
 
 @app.before_request
@@ -1025,6 +1071,7 @@ def logout():
 
 @app.get("/importar")
 @login_required
+@master_required
 def importar():
     return render_template("importar.html")
 
@@ -1166,6 +1213,9 @@ def financeiro():
         datetime.strptime(mes, "%Y-%m")
     except ValueError:
         mes = datetime.now().strftime("%Y-%m")
+    aba = clean(request.args.get("aba", "resumo"), 20) or "resumo"
+    if aba not in {"resumo", "receitas", "despesas", "categorias", "bancos"}:
+        aba = "resumo"
 
     with conn() as c:
         rows = c.execute("SELECT * FROM condominios ORDER BY nome COLLATE NOCASE, id").fetchall()
@@ -1198,14 +1248,17 @@ def financeiro():
             "status": status,
         })
 
-    summary = get_finance_summary(mes)
+    summary = get_finance_summary(mes, request.args.get("data_inicio"), request.args.get("data_fim"))
+    receita_data = "COALESCE(NULLIF(r.data_pagamento, ''), r.mes_referencia || '-01')"
     with conn() as c:
         condominios = c.execute("SELECT id, nome FROM condominios ORDER BY nome COLLATE NOCASE").fetchall()
         receitas_todas = c.execute(
-            "SELECT r.*, c.nome AS condominio FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id ORDER BY r.mes_referencia DESC, r.created_at DESC, r.id DESC"
+            f"SELECT r.*, c.nome AS condominio FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id WHERE {receita_data} BETWEEN ? AND ? ORDER BY {receita_data} DESC, r.id DESC",
+            (summary["data_inicio"], summary["data_fim"]),
         ).fetchall()
         despesas_todas = c.execute(
-            "SELECT * FROM financeiro_despesas ORDER BY mes_referencia DESC, vencimento DESC, id DESC"
+            "SELECT * FROM financeiro_despesas WHERE vencimento BETWEEN ? AND ? ORDER BY vencimento DESC, id DESC",
+            (summary["data_inicio"], summary["data_fim"]),
         ).fetchall()
 
     categorias = get_finance_categorias()
@@ -1241,6 +1294,7 @@ def financeiro():
         sem_dados=sem_dados,
         summary=summary,
         mes=mes,
+        aba=aba,
         condominios=condominios,
         categorias=categorias,
         receitas_todas=[dict(row) for row in receitas_todas],
@@ -1575,7 +1629,7 @@ def relatorio_financeiro():
     except ValueError:
         mes = datetime.now().strftime("%Y-%m")
 
-    summary = get_finance_summary(mes)
+    summary = get_finance_summary(mes, request.args.get("data_inicio"), request.args.get("data_fim"))
     now = datetime.now()
     folder = PDFS / "financeiro" / mes
     folder.mkdir(parents=True, exist_ok=True)
@@ -1585,7 +1639,7 @@ def relatorio_financeiro():
     story = [
         Paragraph("ALT GESTÃO DE CONDOMÍNIOS", styles["TitleALT"]),
         Paragraph("RELATÓRIO FINANCEIRO DA ALT", styles["SubALT"]),
-        Paragraph(f"<b>Mês:</b> {mes}", styles["Value"]),
+        Paragraph(f"<b>Período:</b> {summary['periodo_label']}", styles["Value"]),
         Paragraph(f"<b>Receita:</b> R$ {summary['receita']:.2f} &nbsp;&nbsp; <b>Despesa:</b> R$ {summary['despesa']:.2f} &nbsp;&nbsp; <b>Saldo:</b> R$ {summary['saldo']:.2f}", styles["Value"]),
         Spacer(1, 12),
     ]
@@ -1598,7 +1652,7 @@ def relatorio_financeiro():
             Paragraph(pdf_value(item.get("observacao") or "-"), styles["Value"]),
         ])
     if len(receitas_table) == 1:
-        story.append(Paragraph("Nenhuma receita registrada neste mês.", styles["Value"]))
+        story.append(Paragraph("Nenhuma receita registrada no período.", styles["Value"]))
     else:
         story.append(Paragraph("Receitas", styles["Section"]))
         receitas = Table(receitas_table, colWidths=[180, 120, 220])
@@ -1622,7 +1676,7 @@ def relatorio_financeiro():
             Paragraph(pdf_value(f"R$ {float(item['valor']):.2f}"), styles["Value"]),
         ])
     if len(despesas_table) == 1:
-        story.append(Paragraph("Nenhuma despesa registrada neste mês.", styles["Value"]))
+        story.append(Paragraph("Nenhuma despesa registrada no período.", styles["Value"]))
     else:
         story.append(Paragraph("Despesas", styles["Section"]))
         despesas = Table(despesas_table, colWidths=[220, 120, 120])
@@ -1639,7 +1693,7 @@ def relatorio_financeiro():
 
     doc = SimpleDocTemplate(str(path), pagesize=A4, rightMargin=36, leftMargin=36, topMargin=38, bottomMargin=38)
     doc.build(story)
-    log_audit("financeiro_relatorio", f"Relatório financeiro do mês {mes} gerado por {session.get('username')}", session.get('username'))
+    log_audit("financeiro_relatorio", f"Relatório financeiro do período {summary['data_inicio']} a {summary['data_fim']} gerado por {session.get('username')}", session.get('username'))
     return send_file(path, as_attachment=True, download_name=filename, mimetype="application/pdf")
 
 
@@ -1819,6 +1873,7 @@ def excluir(cid):
 
 @app.get("/exportar-json")
 @login_required
+@master_required
 def exportar_json():
     with conn() as c: rows = c.execute("SELECT id,nome,atualizado_em,dados_json FROM condominios ORDER BY id").fetchall()
     payload = {"versao": 3, "exportado_em": datetime.now().isoformat(timespec="seconds"), "condominios": [{"id":r["id"],"nome":r["nome"],"atualizado_em":r["atualizado_em"],"dados":load_data(r)} for r in rows]}
@@ -1829,6 +1884,7 @@ def exportar_json():
 
 @app.post("/importar-json")
 @login_required
+@master_required
 def importar_json():
     f = request.files.get("arquivo")
     if not f or not f.filename.lower().endswith(".json"):

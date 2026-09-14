@@ -20,7 +20,7 @@
     <div>
       <span class="page-kicker">Fase 2</span>
       <h1>Painel financeiro</h1>
-      <p class="page-subtitle">Acompanhamento dos dados bancários dos condomínios.</p>
+      <p class="page-subtitle">Acompanhamento dos dados bancários e movimentações financeiras dos condomínios.</p>
     </div>
     <div class="header-actions">
       <span class="user-badge">{{ current_user().username }} · {{ current_user().role }}</span>
@@ -59,8 +59,8 @@
         <small>Controle financeiro da empresa: entrada dos condomínios e despesas mensais da ALT.</small>
       </div>
       <div class="header-actions compact">
-        <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes) }}">Atualizar</a>
-        <a class="btn ghost small" href="{{ url_for('relatorio_financeiro', mes=mes) }}">Relatório PDF</a>
+        <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, data_inicio=summary.data_inicio, data_fim=summary.data_fim) }}">Atualizar</a>
+        <a class="btn ghost small" href="{{ url_for('relatorio_financeiro', mes=mes, data_inicio=summary.data_inicio, data_fim=summary.data_fim) }}">Relatório PDF</a>
       </div>
     </div>
 
@@ -74,7 +74,9 @@
       </div>
 
       <div id="tab-resumo" class="finance-tab-panel is-active">
-        <div class="finance-toolbar">
+        <form class="finance-toolbar" method="get" action="{{ url_for('financeiro') }}">
+          <input type="hidden" name="mes" value="{{ mes }}">
+          <input type="hidden" name="aba" value="resumo">
           <div class="finance-search">
             <label>Busca</label>
             <input type="text" id="financeSearch" placeholder="ALT, condomínio, fornecedor ou categoria">
@@ -96,20 +98,27 @@
             </select>
           </div>
           <div class="finance-filter-group">
-            <label>Mês</label>
-            <input type="month" value="{{ mes }}" id="financeMonth" onchange="window.location.href='{{ url_for('financeiro') }}?mes=' + this.value">
+            <label for="dataInicio">Data inicial</label>
+            <input type="date" name="data_inicio" id="dataInicio" value="{{ summary.data_inicio }}" required>
           </div>
-        </div>
+          <div class="finance-filter-group">
+            <label for="dataFim">Data final</label>
+            <input type="date" name="data_fim" id="dataFim" value="{{ summary.data_fim }}" required>
+          </div>
+          <div class="finance-form-actions"><button type="submit" class="btn ghost small">Aplicar período</button></div>
+        </form>
+        <p class="subtext">Exibindo movimentações de {{ summary.periodo_label }}.</p>
 
         <div class="finance-table-wrap">
           <table class="finance-table finance-summary-table">
             <thead>
-              <tr><th>Tipo</th><th>Origem</th><th>Nome</th><th>Valor</th><th>Status</th><th>Ações</th></tr>
+              <tr><th>Tipo</th><th>Data</th><th>Origem</th><th>Nome</th><th>Valor</th><th>Status</th><th>Ações</th></tr>
             </thead>
             <tbody>
               {% for item in summary.receitas %}
               <tr class="finance-row" data-type="receita" data-origin="{{ 'ALT' if item.grupo == 'ALT' else 'condominio' }}" data-search="{{ (item.nome_exibicao or '') ~ ' ' ~(item.categoria or '') ~ ' ' ~(item.observacao or '') }} {{ item.grupo or '' }}" data-status="{{ item.status or 'Recebido' }}">
                 <td><span class="finance-tag green">Receita</span></td>
+                <td>{{ item.data_pagamento or (item.mes_referencia ~ '-01') }}</td>
                 <td>{{ item.tipo_label }}</td>
                 <td><strong>{{ item.nome_exibicao }}</strong><div class="subtext">{{ item.categoria or 'Sem categoria' }}</div></td>
                 <td>R$ {{ '%.2f'|format(item.valor) }}</td>
@@ -122,6 +131,7 @@
               {% for item in summary.despesas %}
               <tr class="finance-row" data-type="despesa" data-origin="ALT" data-search="{{ (item.nome or '') ~ ' ' ~(item.categoria or '') ~ ' ' ~(item.fornecedor or '') ~ ' ' ~(item.observacao or '') }}" data-status="{{ item.status or 'Pendente' }}">
                 <td><span class="finance-tag red">Despesa</span></td>
+                <td>{{ item.vencimento }}</td>
                 <td>ALT</td>
                 <td><strong>{{ item.nome }}</strong><div class="subtext">{{ item.categoria or 'Sem categoria' }} · {{ item.fornecedor or 'Fornecedor não informado' }}</div></td>
                 <td>R$ {{ '%.2f'|format(item.valor) }}</td>
@@ -131,7 +141,7 @@
                 </td>
               </tr>
               {% else %}
-              <tr><td colspan="6" class="empty">Nenhuma operação cadastrada para este mês.</td></tr>
+              <tr><td colspan="7" class="empty">Nenhuma operação cadastrada no período selecionado.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -141,8 +151,16 @@
       <div id="tab-receitas" class="finance-tab-panel">
         <div class="finance-subtoolbar">
           <button class="btn success small" data-toggle-panel="panel-receita-form">Cadastrar receita</button>
-          <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+          <form class="header-actions compact" method="get" action="{{ url_for('financeiro') }}">
+            <input type="hidden" name="mes" value="{{ mes }}">
+            <input type="hidden" name="aba" value="receitas">
+            <label class="subtext" for="receitasDataInicio">De <input type="date" name="data_inicio" id="receitasDataInicio" value="{{ summary.data_inicio }}" required></label>
+            <label class="subtext" for="receitasDataFim">Até <input type="date" name="data_fim" id="receitasDataFim" value="{{ summary.data_fim }}" required></label>
+            <button type="submit" class="btn ghost small">Filtrar</button>
+          </form>
         </div>
+
+        <p class="subtext">Receitas no período de {{ summary.periodo_label }}.</p>
 
         <div class="finance-table-wrap">
           <table class="finance-table">
@@ -168,7 +186,7 @@
                 </td>
               </tr>
               {% else %}
-              <tr><td colspan="6" class="empty">Nenhuma receita cadastrada.</td></tr>
+              <tr><td colspan="6" class="empty">Nenhuma receita no período selecionado.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -235,8 +253,16 @@
       <div id="tab-despesas" class="finance-tab-panel">
         <div class="finance-subtoolbar">
           <button class="btn danger small" data-toggle-panel="panel-despesa-form">Cadastrar despesa</button>
-          <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes) }}">Voltar</a>
+          <form class="header-actions compact" method="get" action="{{ url_for('financeiro') }}">
+            <input type="hidden" name="mes" value="{{ mes }}">
+            <input type="hidden" name="aba" value="despesas">
+            <label class="subtext" for="despesasDataInicio">De <input type="date" name="data_inicio" id="despesasDataInicio" value="{{ summary.data_inicio }}" required></label>
+            <label class="subtext" for="despesasDataFim">Até <input type="date" name="data_fim" id="despesasDataFim" value="{{ summary.data_fim }}" required></label>
+            <button type="submit" class="btn ghost small">Filtrar</button>
+          </form>
         </div>
+
+        <p class="subtext">Despesas com vencimento de {{ summary.periodo_label }}.</p>
 
         <div class="finance-table-wrap">
           <table class="finance-table">
@@ -263,7 +289,7 @@
                 </td>
               </tr>
               {% else %}
-              <tr><td colspan="7" class="empty">Nenhuma despesa cadastrada.</td></tr>
+              <tr><td colspan="7" class="empty">Nenhuma despesa no período selecionado.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -442,6 +468,14 @@
 
   const tabButtons = document.querySelectorAll('.finance-tab-button');
   const tabPanels = document.querySelectorAll('.finance-tab-panel');
+  const abaAtual = {{ aba|tojson }};
+  const botaoAbaAtual = document.querySelector(`[data-target="tab-${abaAtual}"]`);
+  const painelAbaAtual = document.getElementById(`tab-${abaAtual}`);
+
+  if (botaoAbaAtual && painelAbaAtual) {
+    tabButtons.forEach((item) => item.classList.toggle('is-active', item === botaoAbaAtual));
+    tabPanels.forEach((panel) => panel.classList.toggle('is-active', panel === painelAbaAtual));
+  }
 
   tabButtons.forEach((button) => {
     button.addEventListener('click', () => {
