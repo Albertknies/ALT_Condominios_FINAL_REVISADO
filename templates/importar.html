@@ -25,25 +25,49 @@
 <main>
   <div class="page-head">
     <div>
-      <span class="page-kicker">Restauração</span>
+      <span class="page-kicker">Restauração de dados</span>
       <h1>Importar backup</h1>
-      <p>Selecione um arquivo JSON exportado pelo sistema.</p>
+      <p>Restaure os dados do sistema usando um arquivo JSON exportado anteriormente.</p>
     </div>
   </div>
 
   {% with messages=get_flashed_messages(with_categories=true) %}
-    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+    {% for cat,msg in messages %}
+      <div class="flash {{ cat }}">{{ msg }}</div>
+    {% endfor %}
   {% endwith %}
 
-  <section class="card">
+  <section class="card backup-card">
+    <div class="card-head">
+      <div>
+        <h2>Selecionar arquivo</h2>
+        <p class="muted">Utilize somente arquivos JSON gerados pelo sistema ALT.</p>
+      </div>
+      <span class="status-badge">Backup</span>
+    </div>
+
     <form method="post" action="{{ url_for('importar_json') }}" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
       <div class="grid">
         <div class="full">
           <label for="arquivo">Arquivo JSON</label>
-          <input type="file" id="arquivo" name="arquivo" accept=".json,application/json" required>
+          <input
+            type="file"
+            id="arquivo"
+            name="arquivo"
+            accept=".json,application/json"
+            required
+          >
+          <small class="muted">Selecione um arquivo com extensão .json.</small>
         </div>
       </div>
+
+      <div class="notice">
+        <strong>Importante:</strong>
+        confirme se o arquivo está correto antes de prosseguir com a restauração.
+      </div>
+
       <div class="bottom">
         <a class="btn ghost" href="{{ url_for('index') }}">Cancelar</a>
         <button class="btn success" type="submit">Importar arquivo</button>

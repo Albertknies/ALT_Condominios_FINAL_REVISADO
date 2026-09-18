@@ -7,20 +7,584 @@
 <title>ALT — {{ 'Editar cadastro' if cid else 'Nova atualização' }}</title>
 <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<style>
+  :root {
+    --primary: #4F2C68;
+    --primary-dark: #341846;
+    --border: #e5e7eb;
+    --text: #1e293b;
+    --muted: #6b7280;
+    --success: #10b981;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #f8fafc;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .top-navbar {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #fff;
+    padding: 12px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+  }
+
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-group img {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #fff;
+    padding: 3px;
+  }
+
+  .brand-title {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .brand-subtitle {
+    font-size: 13px;
+    opacity: .85;
+    margin-top: 4px;
+  }
+
+  .nav-menu {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .nav-link {
+    color: #f3e8ff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 7px;
+  }
+
+  .nav-link:hover,
+  .nav-link.highlight {
+    background: rgba(255,255,255,.16);
+    color: #fff;
+  }
+
+  .nav-link.highlight {
+    background: var(--success);
+  }
+
+  .user-badge {
+    background: rgba(255,255,255,.12);
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #f3e8ff;
+    white-space: nowrap;
+  }
+
+  .progress-wrap {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+  }
+
+  .progress-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .progress-bar {
+    height: 8px;
+    overflow: hidden;
+    background: #ede9f2;
+    border-radius: 999px;
+  }
+
+  .progress-fill {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #a855f7);
+    border-radius: 999px;
+    transition: width .2s ease;
+  }
+
+  .progress-text {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: right;
+  }
+
+  main {
+    max-width: 1400px;
+    margin: 24px auto;
+    padding: 0 20px;
+  }
+
+  .page-head { margin-bottom: 22px; }
+
+  .page-kicker {
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  h1 {
+    margin: 5px 0 8px;
+    font-size: 30px;
+    color: var(--text);
+  }
+
+  .page-head p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.03);
+  }
+
+  @media (max-width: 900px) {
+    .top-navbar {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 14px 18px;
+    }
+
+    .nav-menu { justify-content: flex-start; }
+    main { padding: 0 12px; margin-top: 18px; }
+    .brand-title { font-size: 18px; }
+  }
+</style>
+
+
+<style>
+  /* Status visual dos prazos, incluindo o mandato do síndico */
+  .date-status {
+    display: block;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+    border: 1px solid transparent;
+  }
+
+  .date-status:empty {
+    display: none;
+  }
+
+  .date-status.valid {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #86efac;
+  }
+
+  .date-status.warning {
+    color: #92400e;
+    background: #fef3c7;
+    border-color: #fbbf24;
+  }
+
+  .date-status.expired {
+    color: #991b1b;
+    background: #fee2e2;
+    border-color: #fca5a5;
+  }
+
+  .mandate-grid {
+    align-items: start;
+  }
+
+  .mandate-grid .field input[type="date"] {
+    width: 100%;
+  }
+</style>
+
+
+<style>
+  .field-help {
+    margin-top: 7px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .mandate-grid {
+    align-items: start;
+  }
+
+  .mandate-grid > .field {
+    min-width: 0;
+  }
+</style>
+
+
+<style>
+  .section-intro {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 22px;
+    margin-bottom: 20px;
+  }
+
+  .section-description {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .section-tip {
+    max-width: 390px;
+    padding: 12px 14px;
+    border: 1px solid #ddd6fe;
+    border-radius: 10px;
+    background: #f5f3ff;
+    color: #4c1d95;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .section-tip strong {
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .document-grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .document-item {
+    display: grid;
+    grid-template-columns: minmax(220px, .9fr) minmax(0, 1.5fr);
+    gap: 22px;
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+  }
+
+  .document-purple {
+    background: #faf7ff;
+    border-color: #e9d5ff;
+  }
+
+  .document-blue {
+    background: #f5faff;
+    border-color: #dbeafe;
+  }
+
+  .document-green {
+    background: #f4fcf7;
+    border-color: #d1fae5;
+  }
+
+  .document-info h3 {
+    margin: 0 0 7px;
+    color: #4f2c68;
+    font-size: 17px;
+  }
+
+  .document-info p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .document-questions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(145px, 1fr));
+    gap: 12px 18px;
+    align-items: start;
+  }
+
+  .document-questions > .q {
+    min-width: 0;
+  }
+
+  .document-questions > .conditional {
+    min-width: 0;
+  }
+
+  .document-questions .q label:first-child {
+    font-size: 12px;
+  }
+
+  .document-questions .rad {
+    gap: 10px;
+  }
+
+  .section-tip-bottom {
+    max-width: none;
+    margin-top: 18px;
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+  }
+
+  @media (max-width: 900px) {
+    .section-intro {
+      flex-direction: column;
+    }
+
+    .section-tip {
+      max-width: none;
+      width: 100%;
+    }
+
+    .document-item {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .document-questions {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+
+<style>
+  .maintenance-card .section-tip,
+  .insurance-card .section-tip {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #475569;
+  }
+
+  .document-questions .field {
+    min-width: 0;
+  }
+
+  .date-status {
+    margin-top: 7px;
+  }
+
+  @media (max-width: 900px) {
+    .document-questions {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<style>
+  .cleaning-choice {
+    margin-bottom: 18px;
+  }
+
+  .cleaning-subtitle {
+    margin: 20px 0 12px;
+    padding-left: 10px;
+    border-left: 3px solid #7c3aed;
+    color: #4f2c68;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .cleaning-card .section-tip-bottom {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #475569;
+  }
+
+  .cleaning-card .field-help {
+    display: block;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+</style>
+
+<style>
+  .security-card .cleaning-subtitle {
+    margin-top: 20px;
+    margin-bottom: 12px;
+    padding-left: 10px;
+    border-left: 3px solid #7c3aed;
+    color: #4f2c68;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .funcionario-portaria {
+    margin-top: 12px;
+    padding-top: 4px;
+  }
+</style>
+
+<style>
+  .conditional.hide {
+    display: none !important;
+  }
+
+  .conditional {
+    transition: opacity .15s ease;
+  }
+</style>
+
+
+<style id="progressive-disclosure-clean">
+  .conditional {
+    display: none;
+  }
+
+  .conditional:not(.hide) {
+    display: block;
+  }
+
+  .document-questions > .conditional,
+  .grid > .conditional {
+    margin-top: 14px;
+  }
+
+  .document-questions > .conditional:not(.hide) {
+    animation: conditionalFade .16s ease-in;
+  }
+
+  @keyframes conditionalFade {
+    from { opacity: .35; transform: translateY(-2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+
+<style id="clean-all-sections">
+  .section-intro {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .section-intro > div:first-child {
+    flex: 1 1 420px;
+    min-width: 0;
+  }
+
+  .section-tip {
+    flex: 0 1 340px;
+    max-width: 100%;
+  }
+
+  .section-description {
+    margin-top: 6px;
+  }
+
+  .conditional {
+    display: none;
+  }
+
+  .conditional:not(.hide) {
+    display: block;
+  }
+
+  .conditional .conditional {
+    margin-top: 12px;
+  }
+
+  @media (max-width: 760px) {
+    .section-intro {
+      gap: 12px;
+    }
+
+    .section-tip {
+      flex-basis: 100%;
+    }
+  }
+</style>
+
+<style id="operational-clean-layout">
+  .subsection {
+    margin-top: 24px;
+    padding-top: 4px;
+  }
+
+  .subsection + .subsection {
+    border-top: 1px solid #ece7f2;
+    padding-top: 20px;
+  }
+
+  .subsection h3 {
+    margin: 0 0 12px;
+    color: #4f2c68;
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .controle-portao {
+    margin-top: 14px;
+  }
+
+  .controle-portao + .controle-portao {
+    border-top: 1px solid #ece7f2;
+    padding-top: 10px;
+  }
+</style>
+
 </head>
 <body>
 
-<header class="brand-header">
-  <div class="brand-content">
-    <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-    <div class="brand-info">
-      <strong>ALT Gestão de Condomínios</strong>
-      <span>Ficha cadastral e atualização de informações</span>
+<header class="top-navbar">
+  <div class="brand-group">
+    <img src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+    <div>
+      <div class="brand-title">ALT Gestão de Condomínios</div>
+      <div class="brand-subtitle">Ficha cadastral e atualização de informações</div>
     </div>
   </div>
-  <div class="header-actions">
-    <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
-  </div>
+
+  <nav class="nav-menu">
+    {% if current_user() %}
+      <span class="user-badge">{{ current_user().username }} · {{ current_user().role }}</span>
+    {% endif %}
+    <a class="nav-link" href="{{ url_for('index') }}">Condomínios</a>
+    <a class="nav-link" href="{{ url_for('demandas_painel') }}">Demandas</a>
+    <a class="nav-link" href="{{ url_for('carteiras') }}">Carteiras</a>
+    {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
+      <a class="nav-link" href="{{ url_for('financeiro') }}">Financeiro</a>
+    {% endif %}
+    {% if is_master_user() %}
+      <a class="nav-link" href="{{ url_for('importar') }}">Importar</a>
+      <a class="nav-link" href="{{ url_for('exportar_json') }}">Exportar</a>
+    {% endif %}
+    {% if current_user() and current_user().role in ['admin', 'master'] %}
+      <a class="nav-link" href="{{ url_for('usuarios') }}">Usuários</a>
+      <a class="nav-link" href="{{ url_for('auditoria') }}">Auditoria</a>
+    {% endif %}
+    <a class="nav-link" href="{{ url_for('logout') }}">Sair</a>
+  </nav>
 </header>
 
 <div class="progress-wrap" aria-label="Progresso do formulário">
@@ -97,6 +661,9 @@
         {{text('nome','Nome completo do condomínio','text',true,'autocomplete="organization" maxlength="300"')}}
         {{text('cnpj','CNPJ','text',false,'inputmode="numeric" maxlength="18"')}}
         {{text('unidades','Quantidade de unidades','number',false,'min="1" max="100000" step="1" inputmode="numeric"')}}
+        {{text('blocos','Quantidade de blocos/torres','number',false,'min="0" max="1000" step="1" inputmode="numeric"')}}
+        {{text('vagasGaragem','Quantidade de vagas de garagem','number',false,'min="0" max="100000" step="1" inputmode="numeric"')}}
+        {{text('anoConstrucao','Ano de construção','number',false,'min="1800" max="2200" step="1" inputmode="numeric"')}}
       </div>
       <h3>Endereço</h3>
       <div class="grid address-grid">
@@ -144,11 +711,24 @@
         </div>
       </div>
       <div class="grid mandate-grid">
-        {{text('ataEleicao','Data da ata de eleição','date')}}
-        {{text('ultAGO','Data da última AGO','date')}}
+        <div class="field">
+          {{text('ultAGO','Data da última AGO','date')}}
+          <div class="field-help">
+            AGO significa Assembleia Geral Ordinária: reunião realizada normalmente uma vez por ano para tratar de assuntos do condomínio, como prestação de contas, orçamento e demais decisões ordinárias.
+          </div>
+        </div>
+
+        <div class="field">
+          {{text('ataEleicao','Assembleia de eleição do síndico','date')}}
+          <div class="field-help">
+            Informe a data em que foi realizada a assembleia que elegeu o síndico atual.
+          </div>
+        </div>
+
         <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Mandato do síndico')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Mandato do síndico')|list|first).status }}{% endif %}">
-          <label for="fimMandato">Vencimento do mandato</label>
+          <label for="fimMandato">Mandato do síndico vence em</label>
           <input name="fimMandato" id="fimMandato" type="date" value="{{d.get('fimMandato','')}}">
+          <div class="field-help">Informe a data final do mandato aprovado na assembleia.</div>
           <div data-status-for="fimMandato" class="date-status" aria-live="polite"></div>
         </div>
       </div>
@@ -174,86 +754,236 @@
       </div>
     </section>
 
-    <section class="card" id="sec5">
-      <h2><span class="section-number">05</span> Documentação</h2>
-      <div class="grid">
-        {{yn('conv','Possui Convenção?')}}
-        <div id="convFisBox" class="conditional">{{yn('convFis','Se sim, está impressa na pasta física?')}}</div>
-        {{yn('reg','Possui Regimento Interno?')}}
-        <div id="regFisBox" class="conditional">{{yn('regFis','Se sim, está impresso na pasta física?')}}</div>
-        {{yn('admFis','Contrato da administração está impresso na pasta física?')}}
+    <section class="card documentation-card" id="sec5">
+      <div class="section-intro">
+        <div>
+          <h2><span class="section-number">05</span> Documentação</h2>
+          <p class="section-description">Informe quais documentos o condomínio possui e o status de cada um.</p>
+        </div>
+        <div class="section-tip">
+          <strong>Orientação</strong>
+          <span>Mantenha os documentos atualizados na pasta física e, quando possível, também em formato digital.</span>
+        </div>
       </div>
-    </section>
 
-    <section class="card" id="sec6">
-      <h2><span class="section-number">06</span> PPCI e segurança contra incêndio</h2>
-      {{yn('ppci','Possui PPCI?')}}
-      <div id="ppciBox" class="conditional">
-        <div class="grid">
-          <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','PPCI')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','PPCI')|list|first).status }}{% endif %}">
-            <label for="validPpci">Validade do PPCI</label>
-            <input name="validPpci" id="validPpci" type="date" value="{{d.get('validPpci','')}}">
-            <div data-status-for="validPpci" class="date-status" aria-live="polite"></div>
+      <div class="document-grid">
+        <div class="document-item document-purple">
+          <div class="document-info">
+            <h3>Convenção do condomínio</h3>
+            <p>Documento que estabelece as regras gerais de funcionamento do condomínio.</p>
           </div>
-          {{yn('ppciFis','PPCI está impresso na pasta física?')}}
-        </div>
-      </div>
-      {{yn('ext','Extintores em situação regular?')}}
-      <div id="extBox" class="conditional">
-        <div class="grid">
-          <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Recarga de extintor')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Recarga de extintor')|list|first).status }}{% endif %}">
-            <label for="recarga">Data da última recarga</label>
-            <input name="recarga" id="recarga" type="date" value="{{d.get('recarga','')}}">
-            <div data-status-for="recarga" class="date-status" aria-live="polite"></div>
+          <div class="document-questions">
+            {{yn('conv','Possui convenção?')}}
+            <div id="convFisBox" class="conditional"><div id="convFisQuestion">{{yn('convFis','Está impressa na pasta física?')}}</div></div>
+            <div id="convRegBox" class="conditional"><div id="convRegQuestion" class="conditional">{{yn('convReg','Está registrada?')}}</div></div>
           </div>
-          {{yn('extFis','Documento dos extintores está impresso?')}}
+        </div>
+
+        <div class="document-item document-blue">
+          <div class="document-info">
+            <h3>Regimento interno</h3>
+            <p>Define as normas de convivência, uso das áreas comuns e regras do condomínio.</p>
+          </div>
+          <div class="document-questions">
+            {{yn('reg','Possui regimento interno?')}}
+            <div id="regFisBox" class="conditional"><div id="regFisQuestion">{{yn('regFis','Está impresso na pasta física?')}}</div></div>
+            <div id="regRegBox" class="conditional"><div id="regRegQuestion" class="conditional">{{yn('regReg','Está registrado/aprovado?')}}</div></div>
+          </div>
+        </div>
+
+        <div class="document-item document-green">
+          <div class="document-info">
+            <h3>Contrato da administradora</h3>
+            <p>Formaliza a prestação de serviços entre o condomínio e a administradora.</p>
+          </div>
+          <div class="document-questions">
+            {{yn('adm','Possui contrato da administradora?')}}
+            <div id="admAssBox" class="conditional">{{yn('admAss','Está assinado?')}}</div>
+            <div id="admFisBox" class="conditional">{{yn('admFis','Está impresso na pasta física?')}}</div>
+          </div>
         </div>
       </div>
-      {{yn('brig','Possui brigadistas?')}}
-      <div id="brigBox" class="conditional">
-        <div class="grid"><div>{{text('qtdBrig','Quantidade de brigadistas','number',false,'min="1" max="100" step="1" inputmode="numeric"')}}</div></div>
-        <div id="brigList"></div>
+
+      <div class="section-tip section-tip-bottom">
+        <strong>Dica</strong>
+        <span>Ao atualizar um documento, registre a situação atual e mantenha uma cópia organizada para consulta.</span>
       </div>
     </section>
 
-    <section class="card" id="sec7">
-      <h2><span class="section-number">07</span> Limpeza da caixa d'água e dedetização</h2>
-      <div class="grid">
-        <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto',"Limpeza da caixa d'água")|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto',"Limpeza da caixa d'água")|list|first).status }}{% endif %}">
-          <label for="cxData">Data da última limpeza da caixa d'água</label>
-          <input name="cxData" id="cxData" type="date" value="{{d.get('cxData','')}}">
-          <div data-status-for="cxData" class="date-status" aria-live="polite"></div>
+    <section class="card safety-card" id="sec6">
+      <div class="section-intro">
+        <div>
+          <h2><span class="section-number">06</span> PPCI e segurança contra incêndio</h2>
+          <p class="section-description">Controle os prazos e os documentos relacionados à prevenção e proteção contra incêndios.</p>
         </div>
-        {{yn('cxFis','Comprovante da limpeza está impresso?')}}
-        <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Dedetização')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Dedetização')|list|first).status }}{% endif %}">
-          <label for="dedData">Data da última dedetização</label>
-          <input name="dedData" id="dedData" type="date" value="{{d.get('dedData','')}}">
-          <div data-status-for="dedData" class="date-status" aria-live="polite"></div>
+        <div class="section-tip">
+          <strong>O que é PPCI?</strong>
+          <span>Plano de Prevenção e Proteção Contra Incêndio, que reúne as medidas de segurança exigidas para o condomínio.</span>
         </div>
-        {{yn('dedFis','Comprovante da dedetização está impresso?')}}
+      </div>
+
+      <div class="document-grid">
+        <div class="document-item document-purple">
+          <div class="document-info">
+            <h3>PPCI</h3>
+            <p>Plano que define as medidas de prevenção, proteção e segurança contra incêndios.</p>
+          </div>
+          <div class="document-questions">
+            {{yn('ppci','Possui PPCI?')}}
+            <div id="ppciBox" class="conditional">
+              <div class="field">
+                <label for="validPpci">PPCI válido até</label>
+                <input name="validPpci" id="validPpci" type="date" value="{{d.get('validPpci','')}}">
+                <div data-status-for="validPpci" class="date-status" aria-live="polite"></div>
+              </div>
+              <div id="ppciFisQuestion" class="conditional">{{yn('ppciFis','Está impresso na pasta física?')}}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="document-item document-blue">
+          <div class="document-info">
+            <h3>Extintores de incêndio</h3>
+            <p>Equipamentos de combate inicial a incêndios, que precisam de recarga e documentação atualizadas.</p>
+          </div>
+          <div class="document-questions">
+            {{yn('ext','Extintores estão em situação regular?')}}
+            <div id="extBox" class="conditional">
+              <div class="field">
+                <label for="recarga">Data da última recarga</label>
+                <input name="recarga" id="recarga" type="date" value="{{d.get('recarga','')}}">
+              </div>
+              <div class="field">
+                <label for="recargaVenc">Próxima recarga vence em</label>
+                <input name="recargaVenc" id="recargaVenc" type="date" value="{{d.get('recargaVenc','')}}">
+                <div data-status-for="recargaVenc" class="date-status" aria-live="polite"></div>
+              </div>
+              {{yn('extFis','Possui laudo de recarga vigente?')}}
+              <div id="extDocQuestion" class="conditional">{{yn('extDoc','Comprovante está impresso na pasta física?')}}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="document-item document-green">
+          <div class="document-info">
+            <h3>Brigadistas</h3>
+            <p>Pessoas treinadas para atuar em emergências, evacuação e primeiros procedimentos de segurança.</p>
+          </div>
+          <div class="document-questions">
+            {{yn('brig','Possui brigadistas?')}}
+            <div id="brigBox" class="conditional">
+              {{text('qtdBrig','Quantidade de brigadistas','number',false,'min="1" max="100" step="1" inputmode="numeric"')}}
+              <div class="field">
+                <label for="brigTreinoVenc">Treinamento vence em</label>
+                <input name="brigTreinoVenc" id="brigTreinoVenc" type="date" value="{{d.get('brigTreinoVenc','')}}">
+                <div data-status-for="brigTreinoVenc" class="date-status" aria-live="polite"></div>
+              </div>
+              {{yn('brigTreinamento','O treinamento está em dia?')}}
+              <div id="brigList"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="card" id="sec8">
-      <h2><span class="section-number">08</span> Seguro predial</h2>
+    <section class="card maintenance-card" id="sec7">
+      <div class="section-intro">
+        <div>
+          <h2><span class="section-number">07</span> Manutenção e controle sanitário</h2>
+          <p class="section-description">Registre a última realização e o próximo vencimento de cada serviço.</p>
+        </div>
+        <div class="section-tip">
+          <strong>Controle de prazos</strong>
+          <span>O sistema poderá avisar a equipe antes do vencimento, reduzindo atrasos e pendências.</span>
+        </div>
+      </div>
+
+      <div class="document-grid">
+        <div class="document-item document-blue">
+          <div class="document-info">
+            <h3>Limpeza da caixa d’água</h3>
+            <p>Higienização e desinfecção dos reservatórios para garantir a qualidade da água utilizada pelos moradores.</p>
+          </div>
+          <div class="document-questions">
+            {{yn('cxRegular','A limpeza está em dia?')}}
+            <div class="field">
+              <label for="cxData">Data da última limpeza</label>
+              <input name="cxData" id="cxData" type="date" value="{{d.get('cxData','')}}">
+            </div>
+            <div class="field">
+              <label for="cxVenc">Próxima limpeza vence em</label>
+              <input name="cxVenc" id="cxVenc" type="date" value="{{d.get('cxVenc','')}}">
+              <div data-status-for="cxVenc" class="date-status" aria-live="polite"></div>
+            </div>
+            {{text('capacidadeCaixaAgua','Capacidade da caixa d’água','text',false,'maxlength="100"')}}
+            {{yn('cxFis','Comprovante está impresso na pasta física?')}}
+          </div>
+        </div>
+
+        <div class="document-item document-green">
+          <div class="document-info">
+            <h3>Dedetização</h3>
+            <p>Controle de insetos e roedores nas áreas comuns, ajudando a prevenir infestações e riscos sanitários.</p>
+          </div>
+          <div class="document-questions">
+            {{yn('dedRegular','A dedetização está em dia?')}}
+            <div class="field">
+              <label for="dedData">Data da última dedetização</label>
+              <input name="dedData" id="dedData" type="date" value="{{d.get('dedData','')}}">
+            </div>
+            <div class="field">
+              <label for="dedVenc">Próxima dedetização vence em</label>
+              <input name="dedVenc" id="dedVenc" type="date" value="{{d.get('dedVenc','')}}">
+              <div data-status-for="dedVenc" class="date-status" aria-live="polite"></div>
+            </div>
+            {{yn('dedFis','Comprovante está impresso na pasta física?')}}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card insurance-card" id="sec8">
+      <div class="section-intro">
+        <div>
+          <h2><span class="section-number">08</span> Seguro predial</h2>
+          <p class="section-description">Mantenha os dados da apólice e do corretor disponíveis para consultas e renovações.</p>
+        </div>
+        <div class="section-tip">
+          <strong>O que é seguro predial?</strong>
+          <span>Proteção financeira para situações previstas na apólice, como incêndio, danos ao prédio e responsabilidade civil.</span>
+        </div>
+      </div>
+
       {{yn('seg','Possui seguro predial?')}}
       <div id="segBox" class="conditional">
-        <div class="grid">
-          {{text('segEmpresa','Empresa/Seguradora','text',false,'maxlength="200"')}}
-          {{text('corretorResponsavelSeg','Corretor responsável','text',false,'maxlength="200"')}}
-          {{text('contatoCorretorSeg','Contato do corretor responsável','text',false,'maxlength="100"')}}
-          <div class="field {% if d.get('alert_status', {}).get('issues', []) and d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Seguro predial')|list|length %}field-alert field-alert-{{ (d.get('alert_status', {}).get('issues')|selectattr('label','equalto','Seguro predial')|list|first).status }}{% endif %}">
-            <label for="segData">Data da última contratação/renovação</label>
-            <input name="segData" id="segData" type="date" value="{{d.get('segData','')}}">
-            <div data-status-for="segData" class="date-status" aria-live="polite"></div>
+        <div class="document-item document-purple">
+          <div class="document-info">
+            <h3>Dados da apólice</h3>
+            <p>Preencha os dados para facilitar o acompanhamento da cobertura e da renovação.</p>
           </div>
-          {{yn('segFis','Apólice está impressa na pasta física?')}}
+          <div class="document-questions">
+            {{text('segEmpresa','Seguradora','text',false,'maxlength="200"')}}
+            {{text('numApoliceSeg','Número da apólice','text',false,'maxlength="100"')}}
+            {{text('corretorResponsavelSeg','Nome do corretor','text',false,'maxlength="200"')}}
+            {{text('contatoCorretorSeg','Contato do corretor','tel',false,'maxlength="100" inputmode="tel"')}}
+            {{text('emailCorretorSeg','E-mail do corretor','email',false,'maxlength="200"')}}
+            <div class="field">
+              <label for="segData">Data da contratação/renovação</label>
+              <input name="segData" id="segData" type="date" value="{{d.get('segData','')}}">
+            </div>
+            <div class="field">
+              <label for="segVenc">Seguro vence em</label>
+              <input name="segVenc" id="segVenc" type="date" value="{{d.get('segVenc','')}}">
+              <div data-status-for="segVenc" class="date-status" aria-live="polite"></div>
+            </div>
+            <div id="segFisQuestion" class="conditional">{{yn('segFis','Apólice está impressa na pasta física?')}}</div>
+          </div>
         </div>
       </div>
     </section>
 
     <section class="card" id="sec9">
-      <h2><span class="section-number">09</span> Contas de consumo</h2>
+      <div class="section-intro"><div><h2><span class="section-number">09</span> Contas de consumo</h2><p class="section-description">Registre os códigos e os responsáveis pelas contas de luz, água e gás.</p></div></div>
       <div class="grid">
         {{text('luz','Código da conta de luz','text',false,'maxlength="100"')}}
         {{text('agua','Código da conta de água','text',false,'maxlength="100"')}}
@@ -273,46 +1003,141 @@
           </div>
         </div>
         <div id="ultraGasFields" class="conditional"><div class="grid">{{text('codCad','Código de cadastramento','text',false,'maxlength="100"')}}</div></div>
-        <div id="outraGasFields" class="conditional"><div class="grid">{{text('empresaGas','Qual empresa?','text',false,'maxlength="200"')}}{{text('codigoGasOutra','Código para cadastro','text',false,'maxlength="100"')}}</div></div>
+        <div id="adminGasFields" class="conditional">
+          <div class="grid">
+            {{text('leituristaGas','Nome do leiturista','text',false,'maxlength="200"')}}
+            {{text('contatoLeituristaGas','Contato do leiturista','tel',false,'maxlength="30" inputmode="tel"')}}
+          </div>
+        </div>
+        <div id="outraGasFields" class="conditional">
+          <div class="grid">
+            {{text('empresaGas','Qual empresa?','text',false,'maxlength="200"')}}
+            {{text('codigoGasOutra','Código para cadastro','text',false,'maxlength="100"')}}
+          </div>
+        <div class="section-tip"><strong>O que são contas de consumo?</strong><span>São os serviços utilizados pelo condomínio, como energia elétrica, água e gás.</span></div>
       </div>
     </section>
 
-    <section class="card" id="sec10">
-      <h2><span class="section-number">10</span> Limpeza do condomínio</h2>
+    <section class="card cleaning-card" id="sec10">
+      <div class="section-intro">
+        <div>
+          <h2><span class="section-number">10</span> Limpeza do condomínio</h2>
+          <p class="section-description">Informe como a limpeza é realizada e os principais dados da rotina.</p>
+        <div class="section-tip"><strong>O que controlar?</strong><span>Registre quem executa a limpeza, a frequência e a jornada de trabalho.</span></div>
+      </div>
+
       <div class="grid">
-        {{text('quemLimpeza','Quem realiza a limpeza?')}}
-        {{text('empresaLimpeza','Empresa')}}
-        {{text('freqLimpeza','Quantidade de vezes por semana')}}
+        <div class="field">
+          <label for="tipoLimpeza">Tipo de limpeza</label>
+          <select name="tipoLimpeza" id="tipoLimpeza">
+            <option value="">Selecione</option>
+            <option value="Empresa terceirizada">Empresa terceirizada</option>
+            <option value="Funcionário próprio">Funcionário próprio</option>
+            <option value="Misto">Misto</option>
+            <option value="Moradores">Moradores</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+        {{text('quemLimpeza','Responsável pela limpeza')}}
+      </div>
+
+      <div id="limpezaTerceirizadaBox" class="conditional">
+        <div class="cleaning-subtitle">Dados da empresa</div>
+        <div class="grid">
+          {{text('empresaLimpeza','Nome da empresa')}}
+          {{text('contatoEmpresaLimpeza','Contato da empresa','tel',false,'maxlength="30" inputmode="tel"')}}
+        </div>
+      </div>
+
+      <div id="limpezaFuncionarioBox" class="conditional">
+        <div class="cleaning-subtitle">Dados do funcionário</div>
+        <div class="grid">
+          {{text('nomeFuncionarioLimpeza','Nome do funcionário')}}
+          <div class="field">
+            <label for="funcaoLimpeza">Função</label>
+            <select name="funcaoLimpeza" id="funcaoLimpeza">
+              <option value="">Selecione</option>
+              <option value="Zelador">Zelador</option>
+              <option value="Auxiliar predial">Auxiliar predial</option>
+              <option value="Auxiliar de limpeza">Auxiliar de limpeza</option>
+              <option value="Outro">Outra</option>
+            </select>
+          </div>
+          {{text('contatoFuncionarioLimpeza','Contato','tel',false,'maxlength="30" inputmode="tel"')}}
+        </div>
+      </div>
+
+      <div class="grid">
+        {{text('freqLimpeza','Dias de limpeza por semana')}}
         {{text('cargaLimpeza','Carga horária')}}
-        {{yn('limpFis','Contrato de limpeza está impresso?')}}
+        {{text('horarioLimpeza','Horário de trabalho')}}
+        {{yn('limpFis','Contrato de limpeza está impresso na pasta?')}}
       </div>
     </section>
 
-    <section class="card" id="sec11">
-      <h2><span class="section-number">11</span> Segurança</h2>
-      {{yn('seguranca','Possui segurança?')}}
-      <div id="segurancaBox" class="conditional">
+    <section class="card security-card" id="sec11">
+      <div class="section-intro">
+        <div>
+          <h2><span class="section-number">11</span> Portaria</h2>
+          <p class="section-description">Informe o modelo de portaria utilizado pelo condomínio e os dados dos responsáveis.</p>
+        <div class="section-tip"><strong>O que é portaria?</strong><span>É o serviço responsável pelo controle de acesso, atendimento e segurança operacional da entrada.</span></div>
+      </div>
+
+      <div class="grid">
+        {{yn('possuiPortaria','Possui portaria?')}}
+      </div>
+
+      <div id="portariaTipoBox" class="conditional">
+        <div class="field">
+          <label for="tipoPortaria">Tipo de portaria</label>
+          <select name="tipoPortaria" id="tipoPortaria">
+            <option value="">Selecione</option>
+            <option value="Física">Física</option>
+            <option value="Remota">Remota</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="portariaFisicaBox" class="conditional">
+        <div class="cleaning-subtitle">Portaria física</div>
         <div class="grid">
-          {{text('empresaSeg','Empresa responsável')}}
-          {{yn('segFis2','Contrato de segurança está impresso?')}}
+          {{text('empresaPortariaFisica','Empresa responsável')}}
+          {{text('qtdFuncionariosPortaria','Quantidade de funcionários','number',false,'min="1" max="100" step="1" inputmode="numeric"')}}
+        </div>
+        <div id="funcionariosPortariaFields"></div>
+      </div>
+
+      <div id="portariaRemotaBox" class="conditional">
+        <div class="cleaning-subtitle">Portaria remota</div>
+        <div class="grid">
+          {{text('empresaPortariaRemota','Empresa responsável')}}
+          {{text('contatoPortariaRemota','Contato da empresa','tel',false,'maxlength="30" inputmode="tel"')}}
+          {{text('responsavelPortariaRemota','Nome do responsável')}}
+          {{text('emailPortariaRemota','E-mail','email',false,'maxlength="200"')}}
+        </div>
+      </div>
+
+      <div id="portariaContractBox" class="conditional">
+        <div class="grid">
+          {{yn('contratoPortariaFis','Contrato de portaria está impresso na pasta?')}}
         </div>
       </div>
     </section>
 
     <section class="card" id="sec12">
-      <h2><span class="section-number">12</span> Jurídico / Cobrança</h2>
+      <div class="section-intro"><div><h2><span class="section-number">12</span> Jurídico / Cobrança</h2><p class="section-description">Informe se o condomínio possui apoio jurídico para cobranças e registre os dados essenciais.</p></div></div>
       {{yn('juridico','Possui advogado/escritório jurídico para cobranças?')}}
       <div id="juridicoBox" class="conditional">
         <div class="grid">
           {{text('nomeJuridico','Nome do advogado/escritório')}}
           {{text('percCobranca','Percentual aplicado nas cobranças')}}
-          {{yn('jurFis','Contrato com o jurídico está impresso?')}}
-        </div>
+          <div id="jurFisQuestion" class="conditional">{{yn('jurFis','Contrato com o jurídico está impresso?')}}</div>
+        <div class="section-tip"><strong>O que registrar?</strong><span>Informe o responsável jurídico, as condições de cobrança e a existência do contrato.</span></div>
       </div>
     </section>
 
     <section class="card" id="sec13">
-      <h2><span class="section-number">13</span> Mercadinho</h2>
+      <div class="section-intro"><div><h2><span class="section-number">13</span> Mercadinho</h2><p class="section-description">Registre os dados do mercadinho, responsável e informações de repasse ao condomínio.</p></div></div>
       {{yn('mercadinho','Possui mercadinho?')}}
       <div id="mercBox" class="conditional">
         <div class="grid">
@@ -322,13 +1147,109 @@
           {{text('repasseMerc','Repasse para o condomínio (R$)','text',false,'inputmode="decimal"')}}
           {{text('periodoMerc','Periodicidade do repasse')}}
           {{text('dataMerc','Data/período do repasse')}}
-          {{yn('mercFis','Contrato com o mercadinho está impresso?')}}
-        </div>
+          <div id="mercFisQuestion" class="conditional">{{yn('mercFis','Contrato com o mercadinho está impresso?')}}</div>
+        <div class="section-tip"><strong>O que controlar?</strong><span>Registre o responsável, os repasses e o contrato para facilitar o acompanhamento financeiro.</span></div>
       </div>
     </section>
 
     <section class="card" id="sec14">
-      <h2><span class="section-number">14</span> Observações</h2>
+      <div class="section-intro">
+        <div>
+          <h2><span class="section-number">14</span> Informações de acesso e operação</h2>
+          <p class="section-description">Registre informações úteis para o atendimento e a rotina da administradora.</p>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3>Acesso por senha</h3>
+        {{yn('acessoSenha','O condomínio possui acesso por senha?')}}
+        <div id="acessoSenhaBox" class="conditional">
+          <div class="field">
+            <label for="senhasAcesso">Senhas e locais de acesso</label>
+            <textarea name="senhasAcesso" id="senhasAcesso" rows="3" maxlength="2000" placeholder="Ex.: Entrada: 1234&#10;Garagem: 5678">{{d.get('senhasAcesso','')}}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3>Controles dos portões</h3>
+        {{yn('possuiControlePortao','O condomínio possui controles de portão?')}}
+        <div id="controlePortaoBox" class="conditional">
+          <div class="field">
+            <label for="qtdControlesPortao">Quantidade de controles cadastrados</label>
+            <input type="number" name="qtdControlesPortao" id="qtdControlesPortao" min="0" max="100" step="1" value="{{d.get('qtdControlesPortao','')}}">
+          </div>
+          <div id="controlesPortaoFields"></div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3>Internet</h3>
+        {{yn('possuiInternet','O condomínio possui internet contratada?')}}
+        <div id="internetBox" class="conditional">
+          <div class="grid">
+            <div class="field">
+              <label for="operadoraInternet">Operadora</label>
+              <input type="text" name="operadoraInternet" id="operadoraInternet" maxlength="200" value="{{d.get('operadoraInternet','')}}">
+            </div>
+            <div class="field">
+              <label for="loginInternet">Login</label>
+              <input type="text" name="loginInternet" id="loginInternet" maxlength="200" value="{{d.get('loginInternet','')}}">
+            </div>
+            <div class="field">
+              <label for="senhaInternet">Senha</label>
+              <input type="password" name="senhaInternet" id="senhaInternet" maxlength="200" autocomplete="new-password" value="{{d.get('senhaInternet','')}}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3>Construtora</h3>
+        {{yn('sabeConstrutora','O condomínio possui informações da construtora?')}}
+        <div id="construtoraBox" class="conditional">
+          <div class="grid">
+            <div class="field">
+              <label for="nomeConstrutora">Nome da construtora</label>
+              <input type="text" name="nomeConstrutora" id="nomeConstrutora" maxlength="200" value="{{d.get('nomeConstrutora','')}}">
+            </div>
+            <div class="field">
+              <label for="cnpjConstrutora">CNPJ</label>
+              <input type="text" name="cnpjConstrutora" id="cnpjConstrutora" maxlength="18" inputmode="numeric" value="{{d.get('cnpjConstrutora','')}}">
+            </div>
+            <div class="field">
+              <label for="responsavelConstrutora">Nome do responsável</label>
+              <input type="text" name="responsavelConstrutora" id="responsavelConstrutora" maxlength="200" value="{{d.get('responsavelConstrutora','')}}">
+            </div>
+            <div class="field">
+              <label for="contatoConstrutora">Contato do responsável</label>
+              <input type="tel" name="contatoConstrutora" id="contatoConstrutora" maxlength="30" inputmode="tel" value="{{d.get('contatoConstrutora','')}}">
+            </div>
+            <div class="field">
+              <label for="entregaConstrutora">Data de entrega do prédio</label>
+              <input type="date" name="entregaConstrutora" id="entregaConstrutora" value="{{d.get('entregaConstrutora','')}}">
+            </div>
+          </div>
+
+          {{yn('predioGarantia','O prédio ainda está na garantia?')}}
+          <div id="garantiaConstrutoraBox" class="conditional">
+            <div class="field">
+              <label for="garantiaAte">Garantia válida até</label>
+              <input type="date" name="garantiaAte" id="garantiaAte" value="{{d.get('garantiaAte','')}}">
+              <div class="date-status" data-status-for="garantiaAte"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="sec15">
+      <div class="section-intro">
+        <div>
+          <h2><span class="section-number">15</span> Observações</h2>
+          <p class="section-description">Inclua informações importantes que não foram contempladas nas demais etapas.</p>
+        </div>
+      </div>
       <label for="obs">Informações complementares</label>
       <textarea name="obs" id="obs" maxlength="5000" placeholder="Digite observações relevantes...">{{d.get('obs','')}}</textarea>
       <span class="field-help">Máximo de 5.000 caracteres.</span>
@@ -434,11 +1355,119 @@ function renderBrig(){
   }
 }
 
+function renderControlesPortao(){
+  const box = document.getElementById("controlesPortaoFields");
+  if(!box) return;
+
+  const qtd = Math.max(0, Math.min(100,
+    parseInt(document.getElementById("qtdControlesPortao")?.value || "0", 10) || 0
+  ));
+
+  const current = [...box.querySelectorAll(".controle-portao")].map(row => ({
+    codigo: row.querySelector('[data-field="codigo"]')?.value || "",
+    portao: row.querySelector('[data-field="portao"]')?.value || ""
+  }));
+
+  box.innerHTML = "";
+  for(let i = 1; i <= qtd; i++){
+    const old = current[i - 1] || {};
+    const row = document.createElement("div");
+    row.className = "controle-portao";
+    row.innerHTML = `
+      <div class="cleaning-subtitle">Controle ${i}</div>
+      <div class="grid">
+        <div class="field">
+          <label for="codigoControlePortao_${i}">Código do controle</label>
+          <input data-field="codigo" type="text" id="codigoControlePortao_${i}"
+                 name="codigoControlePortao_${i}" maxlength="100"
+                 value="${esc(old.codigo)}" placeholder="Código ou identificação">
+        </div>
+        <div class="field">
+          <label for="portaoControlePortao_${i}">Portão/local</label>
+          <input data-field="portao" type="text" id="portaoControlePortao_${i}"
+                 name="portaoControlePortao_${i}" maxlength="200"
+                 value="${esc(old.portao)}" placeholder="Ex.: Garagem, entrada social">
+        </div>
+      </div>
+    `;
+    box.appendChild(row);
+  }
+}
+
+function updateInformacoesOperacionais(){
+  const acessoSenha = radioValue("acessoSenha") === "Sim";
+  const possuiControle = radioValue("possuiControlePortao") === "Sim";
+  const possuiInternet = radioValue("possuiInternet") === "Sim";
+  const possuiConstrutora = radioValue("sabeConstrutora") === "Sim";
+  const garantia = radioValue("predioGarantia") === "Sim";
+
+  toggle("acessoSenhaBox", acessoSenha);
+  toggle("controlePortaoBox", possuiControle);
+  toggle("internetBox", possuiInternet);
+  toggle("construtoraBox", possuiConstrutora);
+  toggle("garantiaConstrutoraBox", possuiConstrutora && garantia);
+
+  renderControlesPortao();
+  renderDateStatus("garantiaAte", "Garantia", 30);
+}
+
+function updatePortaria(){
+  const possui = radioValue("possuiPortaria") === "Sim";
+  const tipo = document.getElementById("tipoPortaria")?.value || "";
+
+  toggle("portariaTipoBox", possui);
+  toggle("portariaFisicaBox", possui && tipo === "Física");
+  toggle("portariaRemotaBox", possui && tipo === "Remota");
+  toggle("portariaContractBox", possui && (tipo === "Física" || tipo === "Remota"));
+
+  const container = document.getElementById("funcionariosPortariaFields");
+  if (!container) return;
+
+  const qtd = Math.max(0, Math.min(100, Number(document.getElementById("qtdFuncionariosPortaria")?.value || 0)));
+  const atual = container.querySelectorAll(".funcionario-portaria").length;
+
+  if (atual === qtd) return;
+
+  container.innerHTML = "";
+  for (let i = 1; i <= qtd; i++) {
+    const item = document.createElement("div");
+    item.className = "funcionario-portaria";
+    item.innerHTML = `
+      <div class="cleaning-subtitle">Funcionário ${i}</div>
+      <div class="grid">
+        <div class="field">
+          <label for="nomeFuncionarioPortaria_${i}">Nome completo</label>
+          <input type="text" id="nomeFuncionarioPortaria_${i}" name="nomeFuncionarioPortaria_${i}" maxlength="200">
+        </div>
+        <div class="field">
+          <label for="cpfFuncionarioPortaria_${i}">CPF</label>
+          <input type="text" id="cpfFuncionarioPortaria_${i}" name="cpfFuncionarioPortaria_${i}" maxlength="14" inputmode="numeric" placeholder="000.000.000-00">
+        </div>
+        <div class="field">
+          <label for="telefoneFuncionarioPortaria_${i}">Telefone</label>
+          <input type="tel" id="telefoneFuncionarioPortaria_${i}" name="telefoneFuncionarioPortaria_${i}" maxlength="30" inputmode="tel">
+        </div>
+      </div>
+    `;
+    container.appendChild(item);
+  }
+}
+
+function updateLimpeza(){
+  const tipo = document.getElementById("tipoLimpeza")?.value || "";
+  const terceirizada = tipo === "Empresa terceirizada" || tipo === "Misto";
+  const funcionario = tipo === "Funcionário próprio" || tipo === "Misto";
+
+  toggle("limpezaTerceirizadaBox", terceirizada);
+  toggle("limpezaFuncionarioBox", funcionario);
+}
+
 function updateGas(){
   const gas = radioValue("gas") === "Sim";
   const tipo = document.getElementById("gasTipo")?.value || "";
   toggle("gasBox", gas);
   toggle("ultraGasFields", gas && tipo === "Ultragás");
+  toggle("adminGasFields", gas && tipo === "Administração");
   toggle("outraGasFields", gas && tipo === "Outra");
 }
 
@@ -483,10 +1512,11 @@ function updateMandate(){
 
 function updateDateAlerts(){
   renderDateStatus("validPpci", "PPCI", 30);
-  renderDateStatus("recarga", "Recarga", 30);
-  renderDateStatus("cxData", "Limpeza da caixa d'água", 30);
-  renderDateStatus("dedData", "Dedetização", 30);
-  renderDateStatus("segData", "Seguro predial", 30);
+  renderDateStatus("recargaVenc", "Recarga dos extintores", 30);
+  renderDateStatus("brigTreinoVenc", "Treinamento dos brigadistas", 30);
+  renderDateStatus("cxVenc", "Limpeza da caixa d'água", 30);
+  renderDateStatus("dedVenc", "Dedetização", 30);
+  renderDateStatus("segVenc", "Seguro predial", 30);
   updateMandate();
 }
 
@@ -510,17 +1540,46 @@ function update(){
   toggle("sindicoMorador", tipo === "Morador");
   toggle("sindicoProfissional", tipo === "Profissional");
   toggle("conselhoBox", radioValue("conselho") === "Sim");
-  toggle("convFisBox", radioValue("conv") === "Sim");
-  toggle("regFisBox", radioValue("reg") === "Sim");
-  toggle("ppciBox", radioValue("ppci") === "Sim");
-  toggle("extBox", radioValue("ext") === "Sim");
+  const possuiConv = radioValue("conv") === "Sim";
+  const convImpressa = radioValue("convFis") === "Sim";
+  const possuiReg = radioValue("reg") === "Sim";
+  const regImpresso = radioValue("regFis") === "Sim";
+
+  toggle("convFisBox", possuiConv);
+  toggle("convRegBox", possuiConv);
+  toggle("convRegQuestion", possuiConv && convImpressa);
+  toggle("regFisBox", possuiReg);
+  toggle("regRegBox", possuiReg);
+  toggle("regRegQuestion", possuiReg && regImpresso);
+
+  const possuiAdm = radioValue("adm") === "Sim";
+  const contratoAdmAssinado = radioValue("admAss") === "Sim";
+  toggle("admAssBox", possuiAdm);
+  toggle("admFisBox", possuiAdm && contratoAdmAssinado);
+  const possuiPpci = radioValue("ppci") === "Sim";
+  const extRegular = radioValue("ext") === "Sim";
+  const possuiLaudoExt = radioValue("extFis") === "Sim";
+
+  toggle("ppciBox", possuiPpci);
+  toggle("ppciFisQuestion", possuiPpci);
+  toggle("extBox", extRegular);
+  toggle("extDocQuestion", extRegular && possuiLaudoExt);
   toggle("brigBox", radioValue("brig") === "Sim");
-  toggle("segBox", radioValue("seg") === "Sim");
+  const possuiSeguro = radioValue("seg") === "Sim";
+  toggle("segBox", possuiSeguro);
+  toggle("segFisQuestion", possuiSeguro);
   toggle("segurancaBox", radioValue("seguranca") === "Sim");
-  toggle("juridicoBox", radioValue("juridico") === "Sim");
-  toggle("mercBox", radioValue("mercadinho") === "Sim");
+  const possuiJuridico = radioValue("juridico") === "Sim";
+  toggle("juridicoBox", possuiJuridico);
+  toggle("jurFisQuestion", possuiJuridico);
+  const possuiMercadinho = radioValue("mercadinho") === "Sim";
+  toggle("mercBox", possuiMercadinho);
+  toggle("mercFisQuestion", possuiMercadinho);
 
   updateGas();
+  updateLimpeza();
+  updatePortaria();
+  updateInformacoesOperacionais();
 
   if(radioValue("conselho") === "Sim") renderConselho();
   if(radioValue("brig") === "Sim") renderBrig();
@@ -559,7 +1618,45 @@ document.getElementById("gasTipo")?.addEventListener("change", () => {
   updateGas(); markChanged();
 });
 
-["validPpci", "recarga", "cxData", "dedData", "segData", "fimMandato"].forEach(id => {
+document.getElementById("tipoLimpeza")?.addEventListener("change", () => {
+  updateLimpeza(); markChanged();
+});
+["acessoSenha", "possuiControlePortao", "possuiInternet", "sabeConstrutora", "predioGarantia"].forEach(name => {
+  document.querySelectorAll('input[name="' + name + '"]').forEach(el => {
+    el.addEventListener("change", () => {
+      updateInformacoesOperacionais();
+      updateProgress();
+      markChanged();
+    });
+  });
+});
+
+document.getElementById("qtdControlesPortao")?.addEventListener("input", () => {
+  renderControlesPortao();
+  updateProgress();
+  markChanged();
+});
+
+document.getElementById("garantiaAte")?.addEventListener("change", () => {
+  updateInformacoesOperacionais();
+  updateProgress();
+  markChanged();
+});
+
+document.getElementById("tipoPortaria")?.addEventListener("change", () => {
+  updatePortaria(); markChanged();
+});
+document.getElementById("qtdFuncionariosPortaria")?.addEventListener("input", () => {
+  updatePortaria(); markChanged();
+});
+document.querySelectorAll('input[name="possuiPortaria"]').forEach(el => {
+  el.addEventListener("change", () => {
+    updatePortaria(); markChanged();
+  });
+});
+
+
+["validPpci", "recargaVenc", "brigTreinoVenc", "cxVenc", "dedVenc", "segVenc", "fimMandato"].forEach(id => {
   document.getElementById(id)?.addEventListener("change", () => {
     updateDateAlerts();
     markChanged();

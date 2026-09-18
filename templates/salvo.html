@@ -1,91 +1,403 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#4F2C68">
-<title>ALT — Cadastro salvo com sucesso</title>
-<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#4F2C68">
+  <title>ALT — Cadastro salvo com sucesso</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    :root {
+      --alt-purple: #4f2c68;
+      --alt-purple-dark: #321b45;
+      --alt-lilac: #a992e3;
+      --alt-bg: #f5f6fa;
+      --alt-text: #241c2b;
+      --alt-muted: #766d80;
+      --alt-border: #e8e2ef;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #f4f2f8 0%, #f8f9fc 58%, #eef0f6 100%);
+      color: var(--alt-text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .brand-header {
+      position: relative;
+      z-index: 5;
+      min-height: 116px;
+      padding: 22px clamp(22px, 4vw, 64px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+      color: #fff;
+      background:
+        radial-gradient(circle at 88% 0%, rgba(255,255,255,.23), transparent 34%),
+        linear-gradient(115deg, #45245c 0%, #71347f 48%, #a99aef 100%);
+      box-shadow: 0 10px 30px rgba(50, 27, 69, .18);
+      overflow: hidden;
+    }
+
+    .brand-header::after {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      right: -180px;
+      top: -260px;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 50%;
+      box-shadow: 0 0 0 34px rgba(255,255,255,.035), 0 0 0 68px rgba(255,255,255,.025);
+      pointer-events: none;
+    }
+
+    .brand-content {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-logo {
+      width: 68px;
+      height: 68px;
+      padding: 5px;
+      flex: 0 0 auto;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid rgba(255,255,255,.75);
+      border-radius: 18px;
+      box-shadow: 0 8px 22px rgba(25, 13, 36, .18);
+    }
+
+    .brand-info {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .brand-info strong {
+      font-size: clamp(1.15rem, 2.4vw, 1.65rem);
+      line-height: 1.15;
+      letter-spacing: -.035em;
+      font-weight: 800;
+    }
+
+    .brand-info span {
+      font-size: .9rem;
+      color: rgba(255,255,255,.78);
+      letter-spacing: .01em;
+    }
+
+    .header-actions { position: relative; z-index: 1; }
+
+    .header-actions .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 22px;
+      border-radius: 15px;
+      background: rgba(255,255,255,.98);
+      color: var(--alt-purple);
+      border: 1px solid rgba(255,255,255,.7);
+      box-shadow: 0 6px 18px rgba(39, 19, 55, .13);
+      font-weight: 750;
+      text-decoration: none;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .header-actions .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(39, 19, 55, .2);
+    }
+
+    .success-main {
+      width: min(100% - 36px, 980px);
+      margin: 46px auto 38px;
+    }
+
+    .success-card {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(30px, 5vw, 62px);
+      text-align: center;
+      background: rgba(255,255,255,.96);
+      border: 1px solid rgba(79,44,104,.10);
+      border-radius: 30px;
+      box-shadow: 0 20px 55px rgba(46, 28, 64, .10), 0 3px 10px rgba(46, 28, 64, .04);
+    }
+
+    .success-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 5px;
+      background: linear-gradient(90deg, var(--alt-purple-dark), #80509b, var(--alt-lilac));
+    }
+
+    .success-icon {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 24px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(145deg, #5b3377, #3e2356);
+      border: 8px solid #f0eaf5;
+      border-radius: 50%;
+      box-shadow: 0 12px 25px rgba(79,44,104,.20);
+    }
+
+    .success-icon svg {
+      display: block;
+      width: 40px !important;
+      height: 40px !important;
+      max-width: 40px !important;
+      max-height: 40px !important;
+      flex: 0 0 40px;
+    }
+
+    .success-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 12px;
+      margin-bottom: 14px;
+      color: #5a3671;
+      background: #f1ebf7;
+      border: 1px solid #e4d8ee;
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .success-label::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #6fa58b;
+      box-shadow: 0 0 0 4px rgba(111,165,139,.13);
+    }
+
+    #success-title {
+      margin: 0;
+      color: #291936;
+      font-size: clamp(1.55rem, 3vw, 2.25rem);
+      line-height: 1.15;
+      letter-spacing: -.04em;
+      font-weight: 850;
+    }
+
+    .success-name {
+      max-width: 720px;
+      margin: 13px auto 0;
+      color: #7b688b;
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      font-weight: 550;
+      line-height: 1.5;
+    }
+
+    .success-info {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      max-width: 760px;
+      margin: 34px auto 0;
+      text-align: left;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-width: 0;
+      padding: 19px;
+      background: #faf8fc;
+      border: 1px solid var(--alt-border);
+      border-radius: 18px;
+    }
+
+    .info-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 38px;
+      color: #fff;
+      background: var(--alt-purple);
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .info-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--alt-muted);
+      font-size: .77rem;
+      font-weight: 650;
+    }
+
+    .info-item strong {
+      display: block;
+      color: #32203f;
+      font-size: .94rem;
+      line-height: 1.35;
+    }
+
+    .success-message {
+      max-width: 650px;
+      margin: 28px auto 0;
+      color: #7a7082;
+      font-size: .96rem;
+      line-height: 1.75;
+    }
+
+    .success-actions {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 11px;
+      max-width: 760px;
+      margin: 30px auto 0;
+    }
+
+    .success-actions .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 17px;
+      border-radius: 13px;
+      text-decoration: none;
+      font-size: .88rem;
+      font-weight: 750;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+    .success-actions .btn:hover { transform: translateY(-2px); }
+
+    .success-actions .btn.success {
+      color: #fff;
+      background: linear-gradient(135deg, #4f2c68, #70418a);
+      border: 1px solid #4f2c68;
+      box-shadow: 0 7px 18px rgba(79,44,104,.20);
+    }
+
+    .success-actions .btn.ghost {
+      color: #4f2c68;
+      background: #fff;
+      border: 1px solid #ded3e7;
+    }
+
+    .success-actions .btn.ghost:hover { background: #f7f2fa; }
+
+    .action-divider {
+      width: 1px;
+      height: 27px;
+      margin: 0 3px;
+      background: #e4dce9;
+    }
+
+    footer {
+      padding: 0 20px 30px;
+      color: #93879e;
+      text-align: center;
+      font-size: .78rem;
+    }
+
+    @media (max-width: 700px) {
+      .brand-header { min-height: 94px; padding: 16px 18px; gap: 12px; }
+      .brand-content { gap: 10px; }
+      .brand-logo { width: 54px; height: 54px; border-radius: 15px; }
+      .brand-info span { font-size: .78rem; }
+      .header-actions .btn { min-height: 42px; padding: 0 13px; font-size: .84rem; }
+      .success-main { width: min(100% - 22px, 980px); margin-top: 24px; }
+      .success-card { border-radius: 23px; padding: 32px 18px; }
+      .success-info { grid-template-columns: 1fr; margin-top: 26px; }
+      .success-actions { flex-direction: column; align-items: stretch; }
+      .success-actions .btn { width: 100%; }
+      .action-divider { width: 100%; height: 1px; margin: 4px 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
 </head>
 <body>
-
-<header class="brand-header">
-  <div class="brand-content">
-    <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT Gestão de Condomínios">
-    <div class="brand-info">
-      <strong>ALT Gestão de Condomínios</strong>
-      <span>Cadastro e atualização</span>
+  <header class="brand-header">
+    <div class="brand-content">
+      <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT Gestão de Condomínios">
+      <div class="brand-info">
+        <strong>ALT Gestão de Condomínios</strong>
+        <span>Cadastro e atualização</span>
+      </div>
     </div>
-  </div>
-  <div class="header-actions">
-    <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
-  </div>
-</header>
-
-<main class="success-main">
-  <section class="success-card" aria-labelledby="success-title">
-
-    <div class="success-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M5 12.5L9.2 16.5L19 7" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+    <div class="header-actions">
+      <a class="btn ghost" href="{{ url_for('index') }}">⌂&nbsp; Home</a>
     </div>
+  </header>
 
-    <span class="success-label">Operação concluída</span>
+  <main class="success-main">
+    <section class="success-card" aria-labelledby="success-title">
+      <div class="success-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M5 12.5L9.2 16.5L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
 
-    <h1 id="success-title">Cadastro salvo com sucesso</h1>
+      <span class="success-label">Operação concluída</span>
+      <h1 id="success-title">Cadastro salvo com sucesso</h1>
+      <p class="success-name">{{ nome }}</p>
 
-    <p class="success-name">{{ nome }}</p>
-
-    <div class="success-info">
-      <div class="info-item">
-        <span class="info-icon" aria-hidden="true">✓</span>
-        <div>
-          <span class="info-label">Status</span>
-          <strong>Atualização registrada</strong>
+      <div class="success-info">
+        <div class="info-item">
+          <span class="info-icon" aria-hidden="true">✓</span>
+          <div>
+            <span class="info-label">Status</span>
+            <strong>Atualização registrada</strong>
+          </div>
+        </div>
+        <div class="info-item">
+          <span class="info-icon" aria-hidden="true">◷</span>
+          <div>
+            <span class="info-label">Data e horário</span>
+            <strong>{{ atualizado }}</strong>
+          </div>
         </div>
       </div>
 
-      <div class="info-item">
-        <span class="info-icon" aria-hidden="true">⏱</span>
-        <div>
-          <span class="info-label">Data e horário</span>
-          <strong>{{ atualizado }}</strong>
-        </div>
+      <p class="success-message">
+        Os dados foram registrados corretamente no sistema da ALT.<br>
+        Escolha uma das opções abaixo para continuar.
+      </p>
+
+      <div class="success-actions">
+        <a class="btn success" href="{{ url_for('pdf', cid=cid) }}">↓&nbsp; Gerar e baixar PDF</a>
+        <a class="btn ghost" target="_blank" rel="noopener noreferrer" href="{{ url_for('pdf', cid=cid, visualizar=1) }}">↗&nbsp; Abrir PDF para imprimir</a>
+        <div class="action-divider"></div>
+        <a class="btn ghost" href="{{ url_for('editar', cid=cid) }}">Continuar editando</a>
+        <a class="btn ghost" href="{{ url_for('index') }}">Voltar ao início</a>
       </div>
-    </div>
+    </section>
+  </main>
 
-    <p class="success-message">
-      Os dados foram registrados corretamente no sistema da ALT.
-      Escolha uma das opções abaixo para continuar.
-    </p>
-
-    <div class="success-actions">
-      <a class="btn success" href="{{ url_for('pdf', cid=cid) }}">
-        ↓&nbsp; Gerar e baixar PDF
-      </a>
-
-      <a class="btn ghost" target="_blank" rel="noopener noreferrer"
-         href="{{ url_for('pdf', cid=cid, visualizar=1) }}">
-        ↗&nbsp; Abrir PDF para imprimir
-      </a>
-
-      <div class="action-divider"></div>
-
-      <a class="btn ghost" href="{{ url_for('editar', cid=cid) }}">
-        Continuar editando
-      </a>
-
-      <a class="btn ghost" href="{{ url_for('index') }}">
-        Voltar ao início
-      </a>
-    </div>
-
-  </section>
-</main>
-
-<footer>ALT Gestão de Condomínios · Sistema local</footer>
+  <footer>ALT Gestão de Condomínios · Sistema local</footer>
 </body>
 </html>

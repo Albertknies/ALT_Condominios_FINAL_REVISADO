@@ -83,12 +83,12 @@ FIELDS = [
     "conselho", "qtdConselheiros",
     "banco", "agencia", "conta",
     "conv", "convFis", "reg", "regFis", "admFis",
-    "ppci", "validPpci", "ppciFis", "ext", "recarga", "recargaVenc", "extFis", "brig", "qtdBrig", "brigTreinoVenc",
-    "cxData", "cxVenc", "cxFis", "dedData", "dedVenc", "dedFis",
-    "seg", "segEmpresa", "segData", "segVenc", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg",
-    "luz", "agua", "gas", "gasTipo", "codCad", "leituristaGas", "contatoLeituristaGas", "empresaGas", "codigoGasOutra",
-    "quemLimpeza", "tipoLimpeza", "empresaLimpeza", "contatoEmpresaLimpeza", "nomeFuncionarioLimpeza", "funcaoLimpeza", "contatoFuncionarioLimpeza", "freqLimpeza", "cargaLimpeza", "horarioLimpeza", "limpFis",
-    "seguranca", "possuiPortaria", "tipoPortaria", "empresaPortariaFisica", "qtdFuncionariosPortaria", "empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota", "contratoPortariaFis", "empresaSeg", "segFis2",
+    "ppci", "validPpci", "ppciFis", "ext", "recarga", "extFis", "brig", "qtdBrig",
+    "cxData", "cxFis", "dedData", "dedFis",
+    "seg", "segEmpresa", "segData", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg",
+    "luz", "agua", "gas", "gasTipo", "codCad", "empresaGas", "codigoGasOutra",
+    "quemLimpeza", "empresaLimpeza", "freqLimpeza", "cargaLimpeza", "limpFis",
+    "seguranca", "empresaSeg", "segFis2",
     "juridico", "nomeJuridico", "percCobranca", "jurFis",
     "mercadinho", "nomeMerc", "respMerc", "contatoMerc", "repasseMerc", "periodoMerc", "dataMerc", "mercFis",
     "acessoSenha", "senhasAcesso", "possuiControlePortao", "qtdControlesPortao",
@@ -609,9 +609,11 @@ def get_issue_due_date(label, raw_value):
     if not due_date:
         return None
 
-    if label in {"Validade do PPCI", "Mandato do síndico", "Limpeza da caixa d'água", "Recarga de extintor", "Seguro predial", "Dedetização"}:
+    if label in {"Validade do PPCI", "Mandato do síndico"}:
         return due_date
-    return due_date
+    if label == "Dedetização":
+        return due_date + timedelta(days=180)
+    return due_date + timedelta(days=365)
 
 
 def describe_due_date(due_date, days_left):
@@ -631,11 +633,11 @@ def get_condominio_alert_status(d):
 
     checks = [
         ("Validade do PPCI", d.get("validPpci"), 30),
-        ("Limpeza da caixa d'água", d.get("cxVenc") or d.get("cxData"), 30),
+        ("Limpeza da caixa d'água", d.get("cxData"), 30),
         ("Mandato do síndico", d.get("fimMandato"), 30),
-        ("Recarga de extintor", d.get("recargaVenc") or d.get("recarga"), 30),
-        ("Seguro predial", d.get("segVenc") or d.get("segData"), 30),
-        ("Dedetização", d.get("dedVenc") or d.get("dedData"), 30),
+        ("Recarga de extintor", d.get("recarga"), 30),
+        ("Seguro predial", d.get("segData"), 30),
+        ("Dedetização", d.get("dedData"), 30),
     ]
 
     issues = []
@@ -718,7 +720,7 @@ def collect_form(form):
 
     for key in ("conselho", "conv", "convFis", "reg", "regFis", "ppci", "ppciFis", "ext", "extFis", "brig",
                 "cxFis", "dedFis", "seg", "segFis", "limpFis", "seguranca", "segFis2", "juridico", "jurFis",
-                "mercadinho", "mercFis", "admFis", "gas", "possuiPortaria", "contratoPortariaFis"):
+                "mercadinho", "mercFis", "admFis", "gas"):
         d[key] = valid_choice(d[key], YES_NO)
     d["sindicoTipo"] = valid_choice(d["sindicoTipo"], SINDICO_TIPOS)
     d["gasTipo"] = valid_choice(d["gasTipo"], GAS_TIPOS)
@@ -737,22 +739,12 @@ def collect_form(form):
         if codigo or portao:
             d["controlesPortao"].append({"codigo": codigo, "portao": portao})
 
-    d["qtdFuncionariosPortaria"] = parse_int(d["qtdFuncionariosPortaria"], 0, 100, blank="")
-    d["funcionariosPortaria"] = []
-    qtd_func_portaria = int(d["qtdFuncionariosPortaria"] or 0) if d["possuiPortaria"] == "Sim" and d["tipoPortaria"] == "Física" else 0
-    for i in range(1, qtd_func_portaria + 1):
-        nome = clean(form.get(f"nomeFuncionarioPortaria_{i}", ""), 200)
-        cpf = strip_digits(form.get(f"cpfFuncionarioPortaria_{i}", ""))
-        telefone = clean(form.get(f"telefoneFuncionarioPortaria_{i}", ""), 30)
-        if nome or cpf or telefone:
-            d["funcionariosPortaria"].append({"nome": nome, "cpf": cpf, "telefone": telefone})
-
 
     d["unidades"] = parse_int(d["unidades"], 1, 100000)
     d["qtdBrig"] = parse_int(d["qtdBrig"], 0, 100, blank="")
     d["qtdConselheiros"] = parse_int(d["qtdConselheiros"], 0, 20, blank="")
 
-    for key in ("ataEleicao", "ultAGO", "inicioMandato", "fimMandato", "validPpci", "recarga", "recargaVenc", "brigTreinoVenc", "cxData", "cxVenc", "dedData", "dedVenc", "segData", "segVenc"):
+    for key in ("ataEleicao", "ultAGO", "inicioMandato", "fimMandato", "validPpci", "recarga", "cxData", "dedData", "segData"):
         d[key] = valid_date(d[key])
 
     if d["emailSindico"] and (len(d["emailSindico"]) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", d["emailSindico"])):
@@ -810,20 +802,6 @@ def collect_form(form):
 
     if d["mercadinho"] != "Sim":
         for key in ("nomeMerc", "respMerc", "contatoMerc", "repasseMerc", "periodoMerc", "dataMerc", "mercFis"): d[key] = ""
-
-    if d["tipoLimpeza"] not in {"Empresa terceirizada", "Misto"}:
-        for key in ("empresaLimpeza", "contatoEmpresaLimpeza"): d[key] = ""
-    if d["tipoLimpeza"] not in {"Funcionário próprio", "Misto"}:
-        for key in ("nomeFuncionarioLimpeza", "funcaoLimpeza", "contatoFuncionarioLimpeza"): d[key] = ""
-
-    if d["possuiPortaria"] != "Sim":
-        for key in ("tipoPortaria", "empresaPortariaFisica", "qtdFuncionariosPortaria", "empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota", "contratoPortariaFis"): d[key] = ""
-        d["funcionariosPortaria"] = []
-    elif d["tipoPortaria"] == "Física":
-        for key in ("empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota"): d[key] = ""
-    elif d["tipoPortaria"] == "Remota":
-        for key in ("empresaPortariaFisica", "qtdFuncionariosPortaria"): d[key] = ""
-        d["funcionariosPortaria"] = []
 
     if d["gas"] != "Sim":
         d["gasTipo"] = d["codCad"] = d["empresaGas"] = d["codigoGasOutra"] = ""
@@ -2615,11 +2593,9 @@ def pdf(cid):
         ("PPCI impresso", yn(d.get("ppciFis"))),
         ("Extintores em situação regular", yn(d.get("ext"))),
         ("Data da última recarga", format_date(d.get("recarga"))),
-        ("Próxima recarga", format_date(d.get("recargaVenc"))),
         ("Documento dos extintores impresso", yn(d.get("extFis"))),
         ("Possui brigadistas", yn(d.get("brig"))),
         ("Quantidade de brigadistas", d.get("qtdBrig")),
-        ("Vencimento do treinamento", format_date(d.get("brigTreinoVenc"))),
     ])
     for i, item in enumerate(d.get("brigadistas", []), 1):
         add_section(story, f"BRIGADISTA {i}", [
@@ -2629,10 +2605,8 @@ def pdf(cid):
 
     add_section(story, "7. LIMPEZA DA CAIXA D'ÁGUA E DEDETIZAÇÃO", [
         ("Data da última limpeza da caixa d'água", format_date(d.get("cxData"))),
-        ("Próxima limpeza", format_date(d.get("cxVenc"))),
         ("Comprovante da limpeza impresso", yn(d.get("cxFis"))),
         ("Data da última dedetização", format_date(d.get("dedData"))),
-        ("Próxima dedetização", format_date(d.get("dedVenc"))),
         ("Comprovante da dedetização impresso", yn(d.get("dedFis"))),
     ])
 
@@ -2642,7 +2616,6 @@ def pdf(cid):
         ("Corretor responsável", d.get("corretorResponsavelSeg")),
         ("Contato do corretor", d.get("contatoCorretorSeg")),
         ("Data da última contratação/renovação", format_date(d.get("segData"))),
-        ("Vencimento do seguro", format_date(d.get("segVenc"))),
         ("Apólice impressa na pasta física", yn(d.get("segFis"))),
     ])
 
@@ -2654,39 +2627,21 @@ def pdf(cid):
         ("Código de cadastramento", d.get("codCad")),
         ("Empresa de gás", d.get("empresaGas")),
         ("Código para cadastro", d.get("codigoGasOutra")),
-        ("Nome do leiturista", d.get("leituristaGas")),
-        ("Contato do leiturista", d.get("contatoLeituristaGas")),
     ])
 
     add_section(story, "10. LIMPEZA DO CONDOMÍNIO", [
-        ("Tipo de limpeza", d.get("tipoLimpeza")),
-        ("Responsável pela limpeza", d.get("quemLimpeza")),
+        ("Quem realiza a limpeza", d.get("quemLimpeza")),
         ("Empresa", d.get("empresaLimpeza")),
-        ("Contato da empresa", d.get("contatoEmpresaLimpeza")),
-        ("Nome do funcionário", d.get("nomeFuncionarioLimpeza")),
-        ("Função", d.get("funcaoLimpeza")),
-        ("Contato do funcionário", d.get("contatoFuncionarioLimpeza")),
         ("Frequência", d.get("freqLimpeza")),
         ("Carga horária", d.get("cargaLimpeza")),
-        ("Horário de trabalho", d.get("horarioLimpeza")),
         ("Contrato de limpeza impresso", yn(d.get("limpFis"))),
     ])
 
-    portaria_rows = [
-        ("Possui portaria", yn(d.get("possuiPortaria"))),
-        ("Tipo de portaria", d.get("tipoPortaria")),
-        ("Empresa da portaria física", d.get("empresaPortariaFisica")),
-        ("Quantidade de funcionários", d.get("qtdFuncionariosPortaria")),
-        ("Empresa da portaria remota", d.get("empresaPortariaRemota")),
-        ("Contato da portaria remota", d.get("contatoPortariaRemota")),
-        ("Responsável pela portaria remota", d.get("responsavelPortariaRemota")),
-        ("E-mail da portaria remota", d.get("emailPortariaRemota")),
-        ("Contrato de portaria impresso", yn(d.get("contratoPortariaFis"))),
-    ]
-    for i, item in enumerate(d.get("funcionariosPortaria", []), 1):
-        portaria_rows += [(f"Funcionário {i} — nome", item.get("nome")), (f"Funcionário {i} — CPF", item.get("cpf")), (f"Funcionário {i} — telefone", item.get("telefone"))]
-    portaria_rows += [("Segurança adicional", yn(d.get("seguranca"))), ("Empresa de segurança", d.get("empresaSeg")), ("Contrato de segurança impresso", yn(d.get("segFis2")))]
-    add_section(story, "11. PORTARIA E SEGURANÇA", portaria_rows)
+    add_section(story, "11. SEGURANÇA / PORTARIA", [
+        ("Possui segurança/portaria", yn(d.get("seguranca"))),
+        ("Empresa responsável", d.get("empresaSeg")),
+        ("Contrato impresso", yn(d.get("segFis2"))),
+    ])
 
     add_section(story, "12. JURÍDICO / COBRANÇA", [
         ("Possui advogado/escritório", yn(d.get("juridico"))),

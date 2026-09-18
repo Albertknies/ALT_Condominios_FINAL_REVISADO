@@ -3,230 +3,349 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ALT — Condomínios</title>
+<title>ALT — Gestão de Condomínios</title>
 <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  :root {
+    --primary: #4F2C68;
+    --primary-light: #f5f0f8;
+    --border: #e5e7eb;
+    --text-muted: #6b7280;
+  }
+  body {
+    background-color: #f8fafc;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+  .top-navbar {
+    background: linear-gradient(135deg, #4F2C68 0%, #341846 100%);
+    color: white;
+    padding: 12px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .brand-group { display: flex; align-items: center; gap: 12px; }
+  .brand-group img { width: 34px; height: 34px; border-radius: 6px; background: #fff; padding: 2px; }
+  .brand-title { font-size: 16px; font-weight: 700; line-height: 1.2; }
+  .brand-subtitle { font-size: 11px; opacity: 0.8; }
+  
+  .nav-menu { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .nav-link {
+    color: #f3e8ff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .nav-link:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  .nav-link.highlight {
+    background: #10b981;
+    color: #fff;
+    font-weight: 600;
+  }
+  .nav-link.highlight:hover { background: #059669; }
+  .user-badge {
+    background: rgba(255,255,255,0.12);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #f3e8ff;
+    margin-right: 6px;
+  }
+
+  main { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+
+  /* Grid de Métricas Principais */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .kpi-num { font-size: 28px; font-weight: 700; color: #1e293b; margin-top: 6px; }
+  .kpi-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .kpi-card.alert-red { border-left: 4px solid #ef4444; }
+  .kpi-card.alert-yellow { border-left: 4px solid #f59e0b; }
+  .kpi-card.alert-green { border-left: 4px solid #10b981; }
+
+  /* Barra de Ações & Filtros */
+  .controls-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .search-wrap {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: #fafafa;
+  }
+  .search-wrap input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    margin-left: 8px;
+    outline: none;
+    font-size: 14px;
+  }
+  .filter-tabs { display: flex; gap: 6px; }
+  .filter-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.15s;
+    color: #4b5563;
+  }
+  .filter-btn:hover { background: #f3f4f6; }
+  .filter-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+
+  /* Listagem de Condomínios */
+  .condo-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .condo-card:hover { border-color: #cbd5e1; }
+  .condo-info-title { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
+  .condo-info-sub { font-size: 12px; color: var(--text-muted); }
+  
+  .issue-badges-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .tag.red { background: #fee2e2; color: #991b1b; }
+  .tag.yellow { background: #fef3c7; color: #92400e; }
+  .tag.green { background: #ecfdf5; color: #065f46; }
+
+  .condo-actions { display: flex; gap: 8px; align-items: center; }
+  .btn-action {
+    text-decoration: none;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: #374151;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .btn-action:hover { background: #f3f4f6; }
+  .btn-action.danger { color: #dc2626; border-color: #fecaca; }
+  .btn-action.danger:hover { background: #fee2e2; }
+</style>
 </head>
 <body>
-<header class="brand-header">
-  <div class="brand-content">
-    <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-    <div class="brand-info"><strong>ALT Gestão de Condomínios</strong><span>Gestão local</span></div>
+
+<header class="top-navbar">
+  <div class="brand-group">
+    <img src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+    <div>
+      <div class="brand-title">ALT Gestão de Condomínios</div>
+      <div class="brand-subtitle">Painel de Controle</div>
+    </div>
   </div>
+  <nav class="nav-menu">
+    <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }}</span>
+    <a class="nav-link highlight" href="{{ url_for('novo') }}">＋ Novo Condomínio</a>
+    <a class="nav-link" href="{{ url_for('demandas_painel') }}">Demandas</a>
+    <a class="nav-link" href="{{ url_for('carteiras') }}">Carteiras</a>
+    {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
+    <a class="nav-link" href="{{ url_for('financeiro') }}">Financeiro</a>
+    {% endif %}
+    {% if is_master_user() %}
+    <a class="nav-link" href="{{ url_for('importar') }}">Importar</a>
+    <a class="nav-link" href="{{ url_for('exportar_json') }}">Exportar</a>
+    {% endif %}
+    {% if current_user() and current_user().role in ['admin', 'master'] %}
+    <a class="nav-link" href="{{ url_for('usuarios') }}">Usuários</a>
+    <a class="nav-link" href="{{ url_for('auditoria') }}">Auditoria</a>
+    {% endif %}
+    <a class="nav-link" href="{{ url_for('logout') }}" style="opacity: 0.8;">Sair</a>
+  </nav>
 </header>
 
 <main>
-  <div class="page-head">
-    <div>
-      <h1>Condomínios</h1>
-    </div>
-    <div class="header-actions">
-      <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }} · {{ current_user().role if current_user() else 'sem acesso' }}</span>
-      <a class="btn ghost" href="{{ url_for('carteiras') }}">Carteiras</a>
-      <a class="btn success" href="{{ url_for('novo') }}">Novo cadastro</a>
-      {% if is_master_user() %}
-      <a class="btn secondary" href="{{ url_for('importar') }}">Importar</a>
-      <a class="btn ghost" href="{{ url_for('exportar_json') }}">Exportar</a>
-      {% endif %}
-      {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
-      <a class="btn ghost" href="{{ url_for('financeiro') }}">Financeiro</a>
-      {% endif %}
-      {% if current_user() and current_user().role in ['admin', 'master'] %}
-      <a class="btn ghost" href="{{ url_for('usuarios') }}">Usuários</a>
-      <a class="btn ghost" href="{{ url_for('auditoria') }}">Relatório de acesso</a>
-      {% endif %}
-      <a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
-    </div>
-  </div>
-
   {% with messages=get_flashed_messages(with_categories=true) %}
-    {% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+    {% for cat,msg in messages %}<div class="flash {{ cat }}" style="margin-bottom: 16px;">{{ msg }}</div>{% endfor %}
   {% endwith %}
 
-  <section class="home-grid">
-    <a class="home-card" href="{{ url_for('novo') }}">
-      <span class="home-card-icon">＋</span>
-      <strong>Novo cadastro</strong>
-      <small>Criar ou atualizar condomínio.</small>
-    </a>
-
-    <a class="home-card" href="{{ url_for('carteiras') }}">
-      <span class="home-card-icon">👥</span>
-      <strong>Carteiras</strong>
-      <small>Vínculo por síndico.</small>
-    </a>
-
-    {% if is_master_user() %}
-    <a class="home-card" href="{{ url_for('importar') }}">
-      <span class="home-card-icon">↑</span>
-      <strong>Importar</strong>
-      <small>Restaurar backup JSON.</small>
-    </a>
-
-    <a class="home-card" href="{{ url_for('exportar_json') }}">
-      <span class="home-card-icon">↓</span>
-      <strong>Exportar</strong>
-      <small>Gerar backup seguro.</small>
-    </a>
-    {% endif %}
-
-    {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
-    <a class="home-card" href="{{ url_for('financeiro') }}">
-      <span class="home-card-icon">$</span>
-      <strong>Financeiro</strong>
-      <small>Resumo dos dados bancários.</small>
-    </a>
-    {% endif %}
-  </section>
-
-  <section class="stats-grid">
-    <div class="stat-card">
-      <span>Total</span>
-      <strong>{{ total }}</strong>
-    </div>
-    <div class="stat-card purple">
-      <span>Profissionais</span>
-      <strong>{{ profissionais }}</strong>
-    </div>
-    <div class="stat-card green">
-      <span>Moradores</span>
-      <strong>{{ moradores }}</strong>
-    </div>
-    <div class="stat-card gray">
-      <span>Sem tipo</span>
-      <strong>{{ sem_sindico }}</strong>
-    </div>
-  </section>
-
-  <section class="alert-summary">
-    <div class="alert-pill red">
-      <span>Vencidos</span>
-      <strong>{{ alert_summary.red }}</strong>
-    </div>
-    <div class="alert-pill yellow">
-      <span>Próximos</span>
-      <strong>{{ alert_summary.yellow }}</strong>
-    </div>
-    <div class="alert-pill green">
-      <span>Em dia</span>
-      <strong>{{ alert_summary.green }}</strong>
-    </div>
-  </section>
-
-  <section class="card search-panel">
-    <div class="search-box">
-      <label for="searchInput">Buscar</label>
-      <div class="search-input-wrap">
-        <span class="search-icon">⌕</span>
-        <input id="searchInput" type="text" placeholder="Nome, síndico, responsável ou empresa" autocomplete="off">
+  <!-- Métricas Unificadas (KPIs) -->
+  <section class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span>Condomínios</span>
+        <span>🏢</span>
       </div>
+      <div class="kpi-num">{{ total }}</div>
+      <div class="kpi-sub">{{ profissionais }} sind. profissional · {{ moradores }} morador</div>
+    </div>
+
+    <div class="kpi-card alert-red">
+      <div class="kpi-header">
+        <span>Itens Vencidos</span>
+        <span>⚠️</span>
+      </div>
+      <div class="kpi-num" style="color: #dc2626;">{{ alert_summary.red }}</div>
+      <div class="kpi-sub">Exigem renovação imediata</div>
+    </div>
+
+    <div class="kpi-card alert-yellow">
+      <div class="kpi-header">
+        <span>Próximos a Vencer</span>
+        <span>⏰</span>
+      </div>
+      <div class="kpi-num" style="color: #d97706;">{{ alert_summary.yellow }}</div>
+      <div class="kpi-sub">Vencimento nos próximos 30 dias</div>
+    </div>
+
+    <div class="kpi-card alert-green">
+      <div class="kpi-header">
+        <span>Em Dia</span>
+        <span>✅</span>
+      </div>
+      <div class="kpi-num" style="color: #16a34a;">{{ alert_summary.green }}</div>
+      <div class="kpi-sub">Sem pendências críticas</div>
     </div>
   </section>
 
-  <section class="card filter-panel" aria-label="Filtrar por status">
-    <div class="filter-pills">
-      <button type="button" class="filter-pill active alert-green" data-filter-status="all">Todos</button>
-      <button type="button" class="filter-pill alert-red" data-filter-status="red">Vencidos</button>
-      <button type="button" class="filter-pill alert-yellow" data-filter-status="yellow">Próximos</button>
-      <button type="button" class="filter-pill alert-green" data-filter-status="green">Em dia</button>
+  <!-- Filtro e Busca Integrados -->
+  <section class="controls-card">
+    <div class="search-wrap">
+      <span>🔍</span>
+      <input id="searchInput" type="text" placeholder="Buscar por condomínio, síndico ou responsável..." autocomplete="off">
+    </div>
+    <div class="filter-tabs">
+      <button type="button" class="filter-btn active" data-filter="all">Todos</button>
+      <button type="button" class="filter-btn" data-filter="red">Vencidos ({{ alert_summary.red }})</button>
+      <button type="button" class="filter-btn" data-filter="yellow">Próximos ({{ alert_summary.yellow }})</button>
+      <button type="button" class="filter-btn" data-filter="green">Em dia ({{ alert_summary.green }})</button>
     </div>
   </section>
 
-  <section class="card list-card">
-    <div class="list-header">
-      <strong>Registros</strong>
-      <span id="resultsCount">{{ total }} item(s)</span>
-    </div>
-
+  <!-- Lista de Condomínios -->
+  <section id="condoList">
     {% for item in items %}
-      <div class="list-row alert-{{ item['status'] }}" data-name="{{ item['nome']|lower }}" data-search="{{ item['search_text'] }}" data-status="{{ item['status'] }}">
-        <div class="row-main">
-          <div class="row-title-wrap">
-            <span class="status-dot {{ item['status'] }}" aria-label="Status do condomínio"></span>
-            <div>
-              <strong>{{ item['nome'] }}</strong>
-              <small>Últ. atualização: {{ item['atualizado_em'] }}</small>
-            </div>
-          </div>
-          {% if item['issues'] %}
-            <div class="alert-issues">
+      <div class="condo-card" data-search="{{ item['search_text'] }}" data-status="{{ item['status'] }}">
+        <div>
+          <div class="condo-info-title">{{ item['nome'] }}</div>
+          <div class="condo-info-sub">Última atualização: {{ item['atualizado_em'] }}</div>
+
+          <div class="issue-badges-wrap">
+            {% if item['issues'] %}
               {% for issue in item['issues'] %}
-                <span class="issue-pill {{ issue['status'] }}">
-                  {{ issue['label'] }} · {{ issue['date'] }} · {{ issue['days_left_label'] }}
-                </span>
+                {# Destaca apenas o que for urgente (vermelho ou amarelo); os em dia ficam mais discretos #}
+                {% if issue['status'] in ['red', 'yellow'] %}
+                  <span class="tag {{ issue['status'] }}">
+                    ● {{ issue['label'] }} · {{ issue['days_left_label'] }} ({{ issue['date'] }})
+                  </span>
+                {% endif %}
               {% endfor %}
-            </div>
-          {% else %}
-            <div class="alert-issues">
-              <span class="issue-pill green">Sem pendências</span>
-            </div>
-          {% endif %}
+            {% else %}
+              <span class="tag green">● Tudo regularizado</span>
+            {% endif %}
+          </div>
         </div>
-        <div class="row-actions">
-          <a class="btn ghost small" href="{{ url_for('editar', cid=item['id']) }}">Abrir</a>
-          <a class="btn ghost small" href="{{ url_for('pdf', cid=item['id']) }}">PDF</a>
-          <form method="post" action="{{ url_for('excluir', cid=item['id']) }}" class="inline-form" onsubmit="return confirm('Deseja realmente excluir este registro?');">
+
+        <div class="condo-actions">
+          <a class="btn-action" href="{{ url_for('editar', cid=item['id']) }}">Abrir Ficha</a>
+          <a class="btn-action" href="{{ url_for('pdf', cid=item['id']) }}" target="_blank">PDF</a>
+          <form method="post" action="{{ url_for('excluir', cid=item['id']) }}" style="display:inline;" onsubmit="return confirm('Deseja realmente remover este condomínio?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn danger small">Excluir</button>
+            <button type="submit" class="btn-action danger">Excluir</button>
           </form>
         </div>
       </div>
     {% else %}
-      <p class="empty">Nenhum condomínio cadastrado.</p>
+      <div class="controls-card" style="text-align: center; justify-content: center; color: var(--text-muted);">
+        Nenhum condomínio cadastrado no momento.
+      </div>
     {% endfor %}
   </section>
 </main>
 
-<footer>ALT Gestão de Condomínios</footer>
-
 <script>
   const searchInput = document.getElementById('searchInput');
-  const rows = [...document.querySelectorAll('.list-row[data-search]')];
-  const resultsCount = document.getElementById('resultsCount');
-  const filterButtons = [...document.querySelectorAll('.filter-pill[data-filter-status]')];
+  const cards = [...document.querySelectorAll('.condo-card')];
+  const filterBtns = [...document.querySelectorAll('.filter-btn')];
+  let activeFilter = 'all';
 
-  let currentStatusFilter = 'all';
-
-  function updateFilter() {
-    const value = (searchInput?.value || '').trim().toLowerCase();
-    let visible = 0;
-
-    rows.forEach(function (row) {
-      const text = (row.dataset.search || '').toLowerCase();
-      const statusMatch = currentStatusFilter === 'all' || (row.dataset.status || '') === currentStatusFilter;
-      const textMatch = !value || text.includes(value);
-      const match = statusMatch && textMatch;
-      row.style.display = match ? '' : 'none';
-      if (match) visible += 1;
+  function applyFilters() {
+    const term = (searchInput.value || '').trim().toLowerCase();
+    cards.forEach(card => {
+      const matchSearch = !term || (card.dataset.search || '').includes(term);
+      const matchStatus = activeFilter === 'all' || card.dataset.status === activeFilter;
+      card.style.display = (matchSearch && matchStatus) ? 'grid' : 'none';
     });
-
-    if (resultsCount) {
-      resultsCount.textContent = visible + ' item(s)';
-    }
   }
 
-  filterButtons.forEach(function (button) {
-    button.addEventListener('click', function () {
-      currentStatusFilter = button.dataset.filterStatus || 'all';
-      filterButtons.forEach(function (item) {
-        item.classList.toggle('active', item === button);
-      });
-      updateFilter();
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.filter;
+      applyFilters();
     });
   });
 
-  const rowsList = document.querySelectorAll('.list-row[data-search]');
-
-  rowsList.forEach(function (row) {
-    row.addEventListener('click', function (event) {
-      if (event.target.closest('a, button, form')) return;
-      rowsList.forEach(function (item) { item.classList.remove('selected'); });
-      row.classList.add('selected');
-    });
-  });
-
-  searchInput?.addEventListener('input', updateFilter);
-  updateFilter();
+  searchInput.addEventListener('input', applyFilters);
 </script>
 </body>
 </html>

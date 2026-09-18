@@ -6,19 +6,91 @@
   <title>ALT — Usuários</title>
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    :root { --primary:#4F2C68; --primary-dark:#341846; --border:#e5e7eb; --text:#1e293b; --muted:#6b7280; --success:#10b981; --danger:#ef4444; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f8fafc; color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,sans-serif; }
+    .top-navbar { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; padding:12px 28px; display:flex; justify-content:space-between; align-items:center; gap:18px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+    .brand-group { display:flex; align-items:center; gap:12px; }
+    .brand-group img { width:34px; height:34px; border-radius:6px; background:#fff; padding:2px; }
+    .brand-title { font-size:16px; font-weight:700; line-height:1.2; }
+    .brand-subtitle { font-size:11px; opacity:.8; }
+    .nav-menu { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+    .nav-link { color:#f3e8ff; text-decoration:none; font-size:13px; font-weight:500; padding:6px 12px; border-radius:6px; }
+    .nav-link:hover { background:rgba(255,255,255,.15); color:#fff; }
+    .nav-link.highlight { background:var(--success); color:#fff; font-weight:600; }
+    .user-badge { background:rgba(255,255,255,.12); padding:5px 10px; border-radius:20px; font-size:12px; color:#f3e8ff; white-space:nowrap; }
+    main { max-width:1400px; margin:24px auto; padding:0 20px; }
+    .page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:22px; }
+    .page-kicker { color:var(--primary); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+    h1 { margin:4px 0 6px; font-size:30px; }
+    .page-subtitle { margin:0; color:var(--muted); font-size:14px; }
+    .header-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:7px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:.15s; }
+    .btn.small { padding:6px 10px; font-size:12px; }
+    .btn.ghost { background:#fff; color:#374151; }
+    .btn.ghost:hover { background:#f3f4f6; border-color:#cbd5e1; }
+    .btn.success { background:var(--success); color:#fff; border-color:var(--success); }
+    .btn.success:hover { background:#059669; }
+    .btn.danger { background:#fff; color:#dc2626; border-color:#fecaca; }
+    .btn.danger:hover { background:#fee2e2; }
+    .flash { border-radius:8px; padding:12px 14px; margin-bottom:14px; background:#fff; border:1px solid var(--border); font-size:13px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.02); margin-bottom:20px; }
+    .admin-panel { padding:20px; }
+    .card h2 { margin:0 0 18px; font-size:17px; }
+    .form-inline { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; align-items:end; }
+    .field { min-width:0; }
+    .field label { display:block; margin-bottom:6px; color:#4b5563; font-size:12px; font-weight:600; }
+    input, select { width:100%; border:1px solid var(--border); border-radius:7px; background:#fff; color:#1f2937; padding:10px; font:inherit; font-size:13px; outline:none; }
+    input:focus, select:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,44,104,.1); }
+    .password-wrap { display:flex; align-items:stretch; gap:6px; }
+    .password-wrap input { min-width:0; }
+    .toggle-password { border:1px solid var(--border); border-radius:7px; background:#f8fafc; color:#475569; padding:0 10px; font-size:12px; cursor:pointer; }
+    .toggle-password:hover { background:#f1f5f9; }
+    .list-card { overflow:hidden; }
+    .list-header { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; border-bottom:1px solid var(--border); }
+    .list-header strong { font-size:16px; }
+    .user-row { padding:18px 20px; border-bottom:1px solid #eef2f7; display:flex; justify-content:space-between; align-items:flex-start; gap:20px; }
+    .user-row:last-child { border-bottom:0; }
+    .row-main { min-width:170px; }
+    .row-main strong { display:block; font-size:14px; }
+    .row-main small { display:block; margin-top:6px; color:var(--muted); font-size:12px; }
+    .row-actions { display:flex; justify-content:flex-end; align-items:flex-start; flex-wrap:wrap; gap:10px; flex:1; }
+    .inline-form { display:flex; align-items:flex-end; flex-wrap:wrap; gap:8px; }
+    .password-inline-stack { display:flex; align-items:flex-end; flex-wrap:wrap; gap:8px; }
+    .compact-field { width:160px; }
+    .password-wrap.compact { width:210px; }
+    .empty { text-align:center; color:var(--muted); padding:28px 20px; margin:0; }
+    @media (max-width:900px) { .top-navbar { flex-direction:column; align-items:flex-start; padding:14px 18px; } .nav-menu { justify-content:flex-start; } main { padding:0 12px; margin-top:18px; } .page-head { flex-direction:column; align-items:flex-start; } .user-row { flex-direction:column; } .row-actions { justify-content:flex-start; width:100%; } .password-inline-stack, .inline-form { width:100%; } .compact-field, .password-wrap.compact { width:100%; } }
+  </style>
 </head>
 <body>
-  <header class="brand-header">
-    <div class="brand-content">
-      <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-      <div class="brand-info">
-        <strong>ALT Gestão de Condomínios</strong>
-        <span>Gerenciamento de usuários</span>
+  <header class="top-navbar">
+    <div class="brand-group">
+      <img src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+      <div>
+        <div class="brand-title">ALT Gestão de Condomínios</div>
+        <div class="brand-subtitle">Gerenciamento de usuários</div>
       </div>
     </div>
-    <div class="header-actions">
-      <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
-    </div>
+    <nav class="nav-menu">
+      <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }}</span>
+      <a class="nav-link" href="{{ url_for('index') }}">Condomínios</a>
+      <a class="nav-link" href="{{ url_for('demandas_painel') }}">Demandas</a>
+      <a class="nav-link" href="{{ url_for('carteiras') }}">Carteiras</a>
+      {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
+      <a class="nav-link" href="{{ url_for('financeiro') }}">Financeiro</a>
+      {% endif %}
+      {% if is_master_user() %}
+      <a class="nav-link" href="{{ url_for('importar') }}">Importar</a>
+      <a class="nav-link" href="{{ url_for('exportar_json') }}">Exportar</a>
+      {% endif %}
+      {% if current_user() and current_user().role in ['admin', 'master'] %}
+      <a class="nav-link highlight" href="{{ url_for('usuarios') }}">Usuários</a>
+      <a class="nav-link" href="{{ url_for('auditoria') }}">Auditoria</a>
+      {% endif %}
+      <a class="nav-link" href="{{ url_for('logout') }}" style="opacity:.8;">Sair</a>
+    </nav>
   </header>
 
   <main>
@@ -26,6 +98,12 @@
       <div>
         <span class="page-kicker">Administração</span>
         <h1>Usuários</h1>
+        <p class="page-subtitle">Gerencie acessos, perfis e credenciais dos usuários da ALT.</p>
+      </div>
+      <div class="header-actions">
+        <span class="user-badge" style="background:#f3e8ff;color:#4F2C68;">{{ current_user().username }} · {{ current_user().role }}</span>
+        <a class="btn ghost" href="{{ url_for('index') }}">Home</a>
+        <a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
       </div>
     </div>
 
@@ -39,32 +117,10 @@
       <h2>Criar usuário</h2>
       <form method="post" action="{{ url_for('criar_usuario') }}" class="form-inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="field">
-          <label for="username">Usuário</label>
-          <input id="username" name="username" type="text" required>
-        </div>
-        <div class="field">
-          <label for="password">Senha</label>
-          <div class="password-wrap">
-            <input id="password" name="password" type="password" required>
-            <button type="button" class="toggle-password" data-target="password" aria-label="Mostrar senha">Mostrar</button>
-          </div>
-        </div>
-        <div class="field">
-          <label for="password_confirm">Confirmar senha</label>
-          <div class="password-wrap">
-            <input id="password_confirm" name="password_confirm" type="password" required>
-            <button type="button" class="toggle-password" data-target="password_confirm" aria-label="Mostrar senha">Mostrar</button>
-          </div>
-        </div>
-        <div class="field">
-          <label for="role">Perfil</label>
-          <select id="role" name="role">
-            <option value="normal">Normal</option>
-            <option value="financeiro">Financeiro</option>
-            <option value="admin">Administrador</option>
-          </select>
-        </div>
+        <div class="field"><label for="username">Usuário</label><input id="username" name="username" type="text" required></div>
+        <div class="field"><label for="password">Senha</label><div class="password-wrap"><input id="password" name="password" type="password" required><button type="button" class="toggle-password" data-target="password" aria-label="Mostrar senha">Mostrar</button></div></div>
+        <div class="field"><label for="password_confirm">Confirmar senha</label><div class="password-wrap"><input id="password_confirm" name="password_confirm" type="password" required><button type="button" class="toggle-password" data-target="password_confirm" aria-label="Mostrar senha">Mostrar</button></div></div>
+        <div class="field"><label for="role">Perfil</label><select id="role" name="role"><option value="normal">Normal</option><option value="financeiro">Financeiro</option><option value="admin">Administrador</option></select></div>
         <button type="submit" class="btn success">Salvar usuário</button>
       </form>
     </section>
@@ -72,28 +128,16 @@
     <section class="card list-card">
       <div class="list-header"><strong>Usuários cadastrados</strong></div>
       {% for user in usuarios %}
-        <div class="list-row user-row">
-          <div class="row-main">
-            <strong>{{ user.username }}</strong>
-            <small>{{ user.role }} · cadastrado em {{ user.created_at }}</small>
-          </div>
+        <div class="user-row">
+          <div class="row-main"><strong>{{ user.username }}</strong><small>{{ user.role }} · cadastrado em {{ user.created_at }}</small></div>
           <div class="row-actions">
             {% if user.username == 'admin' %}
             <form method="post" action="{{ url_for('editar_usuario', user_id=user.id) }}" class="inline-form reset-password-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="password-inline-stack">
-                <div class="field compact-field">
-                  <label for="admin_username_{{ user.id }}">Usuário</label>
-                  <input id="admin_username_{{ user.id }}" name="username" type="text" value="{{ user.username }}" required>
-                </div>
-                <div class="password-wrap compact">
-                  <input id="admin_password_{{ user.id }}" name="password" type="password" placeholder="Nova senha (opcional)">
-                  <button type="button" class="toggle-password" data-target="admin_password_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button>
-                </div>
-                <div class="password-wrap compact">
-                  <input id="admin_password_confirm_{{ user.id }}" name="password_confirm" type="password" placeholder="Confirmar nova senha">
-                  <button type="button" class="toggle-password" data-target="admin_password_confirm_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button>
-                </div>
+                <div class="field compact-field"><label for="admin_username_{{ user.id }}">Usuário</label><input id="admin_username_{{ user.id }}" name="username" type="text" value="{{ user.username }}" required></div>
+                <div class="password-wrap compact"><input id="admin_password_{{ user.id }}" name="password" type="password" placeholder="Nova senha (opcional)"><button type="button" class="toggle-password" data-target="admin_password_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button></div>
+                <div class="password-wrap compact"><input id="admin_password_confirm_{{ user.id }}" name="password_confirm" type="password" placeholder="Confirmar nova senha"><button type="button" class="toggle-password" data-target="admin_password_confirm_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button></div>
               </div>
               <button type="submit" class="btn ghost small">Salvar admin</button>
             </form>
@@ -101,20 +145,13 @@
             <form method="post" action="{{ url_for('reset_senha_usuario', user_id=user.id) }}" class="inline-form reset-password-form" onsubmit="return confirm('Deseja redefinir a senha deste usuário?');">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="password-inline-stack">
-                <div class="password-wrap compact">
-                  <input id="new_password_{{ user.id }}" name="new_password" type="password" placeholder="Nova senha" required minlength="4">
-                  <button type="button" class="toggle-password" data-target="new_password_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button>
-                </div>
-                <div class="password-wrap compact">
-                  <input id="new_password_confirm_{{ user.id }}" name="new_password_confirm" type="password" placeholder="Confirmar senha" required minlength="4">
-                  <button type="button" class="toggle-password" data-target="new_password_confirm_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button>
-                </div>
+                <div class="password-wrap compact"><input id="new_password_{{ user.id }}" name="new_password" type="password" placeholder="Nova senha" required minlength="4"><button type="button" class="toggle-password" data-target="new_password_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button></div>
+                <div class="password-wrap compact"><input id="new_password_confirm_{{ user.id }}" name="new_password_confirm" type="password" placeholder="Confirmar senha" required minlength="4"><button type="button" class="toggle-password" data-target="new_password_confirm_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button></div>
               </div>
               <button type="submit" class="btn ghost small">Resetar senha</button>
             </form>
             <form method="post" action="{{ url_for('excluir_usuario', user_id=user.id) }}" class="inline-form" onsubmit="return confirm('Deseja realmente excluir este usuário?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn danger small">Excluir</button>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn danger small">Excluir</button>
             </form>
             {% endif %}
           </div>
@@ -128,8 +165,7 @@
   <script>
     document.querySelectorAll('.toggle-password').forEach(function (button) {
       button.addEventListener('click', function () {
-        const targetId = this.dataset.target;
-        const input = document.getElementById(targetId) || document.querySelector('[name="' + targetId + '"]');
+        const input = document.getElementById(this.dataset.target);
         if (!input) return;
         const showing = input.type === 'text';
         input.type = showing ? 'password' : 'text';

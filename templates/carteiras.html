@@ -3,93 +3,337 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#4F2C68">
 <title>ALT — Carteiras de Síndicos</title>
 <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <style>
-body { margin:0; background:#f6f4f7; color:#222; font-family:Arial,sans-serif; }
-.topo { background:#4F2C68; color:#fff; padding:20px 28px; display:flex; justify-content:space-between; align-items:center; gap:20px; }
-.topo h1 { margin:0 0 4px; font-size:24px; }
-.topo p { margin:0; opacity:.85; }
-main { max-width:1100px; margin:28px auto; padding:0 18px 40px; }
-.resumo { background:#fff; padding:18px 20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:18px; }
-.filtros { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
-.filtros .campo { flex:1; min-width:200px; }
-.filtros label { display:block; font-size:12px; font-weight:700; color:#707070; margin-bottom:6px; }
-.filtros input, .filtros select { width:100%; border:1px solid #d9d1e0; border-radius:10px; padding:10px 12px; background:#fff; }
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:18px; }
-.wallet-card { background:#fff; border:1px solid #e8e0ee; border-radius:14px; padding:18px; box-shadow:0 3px 10px rgba(79,44,104,.05); cursor:pointer; transition:all .2s ease; }
-.wallet-card:hover { transform:translateY(-1px); box-shadow:0 8px 18px rgba(79,44,104,.08); }
-.wallet-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
-.wallet-top h2 { margin:0; font-size:19px; color:#4F2C68; }
-.badge { background:#f2eef6; color:#4F2C68; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:700; text-transform:uppercase; }
-.wallet-meta { margin-top:8px; color:#555; font-size:13px; }
-.wallet-meta strong { color:#222; }
-.condominios { margin-top:14px; border-top:1px solid #efedf2; padding-top:12px; display:none; }
-.wallet-card.active .condominios { display:block; }
-.condominio { padding:10px 0; border-bottom:1px solid #f1eef3; }
-.condominio:last-child { border-bottom:0; }
-.condominio strong { display:block; margin-bottom:4px; }
-.condominio small { display:block; color:#777; }
-.condominio .acoes { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
-.vazio { background:#fff; padding:24px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
-footer { text-align:center; padding:25px; color:#777; font-size:13px; }
-@media (max-width: 680px) { .topo { flex-direction:column; align-items:flex-start; } }
+  :root {
+    --primary: #4F2C68;
+    --primary-light: #f5f0f8;
+    --border: #e5e7eb;
+    --text-muted: #6b7280;
+  }
+  body {
+    background-color: #f8fafc;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+  .top-navbar {
+    background: linear-gradient(135deg, #4F2C68 0%, #341846 100%);
+    color: white;
+    padding: 12px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .brand-group { display: flex; align-items: center; gap: 12px; }
+  .brand-group img { width: 34px; height: 34px; border-radius: 6px; background: #fff; padding: 2px; }
+  .brand-title { font-size: 16px; font-weight: 700; line-height: 1.2; }
+  .brand-subtitle { font-size: 11px; opacity: 0.8; }
+  
+  .nav-menu { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .nav-link {
+    color: #f3e8ff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .nav-link:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  .nav-link.active { background: rgba(255,255,255,0.22); color: #fff; font-weight: 600; }
+  .nav-link.highlight {
+    background: #10b981;
+    color: #fff;
+    font-weight: 600;
+  }
+  .nav-link.highlight:hover { background: #059669; }
+  .user-badge {
+    background: rgba(255,255,255,0.12);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #f3e8ff;
+    margin-right: 6px;
+  }
+
+  main { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+
+  /* KPIs */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  .kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .kpi-num { font-size: 28px; font-weight: 700; color: #1e293b; margin-top: 6px; }
+  .kpi-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .kpi-card.purple { border-left: 4px solid #8b5cf6; }
+  .kpi-card.green { border-left: 4px solid #10b981; }
+
+  /* Controles & Filtros */
+  .controls-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .search-wrap {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: #fafafa;
+  }
+  .search-wrap input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    margin-left: 8px;
+    outline: none;
+    font-size: 14px;
+  }
+  .filter-select {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13.5px;
+    color: #374151;
+    background: #fafafa;
+    outline: none;
+  }
+
+  /* Grid das Carteiras */
+  .grid-wallets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .wallet-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+  .wallet-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+  .wallet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .wallet-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--primary);
+    margin: 0;
+  }
+  .badge-tipo {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge-tipo.profissional { background: #ede9fe; color: #6d28d9; }
+  .badge-tipo.morador { background: #dcfce7; color: #15803d; }
+  .badge-tipo.semtipo { background: #f3f4f6; color: #4b5563; }
+
+  .wallet-meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+  .wallet-meta strong { color: #1e293b; }
+
+  .wallet-action-row {
+    margin-top: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+  }
+  .expand-indicator {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .condominios-container {
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    display: none;
+  }
+  .wallet-card.active .condominios-container { display: block; }
+  .wallet-card.active .expand-indicator::after { content: " ▲"; }
+  .wallet-card:not(.active) .expand-indicator::after { content: " ▼"; }
+
+  .condominio-row {
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .condominio-row:last-child { border-bottom: 0; }
+  .condominio-name { font-size: 14px; font-weight: 600; color: #1e293b; }
+  .condominio-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .btn-action {
+    text-decoration: none;
+    padding: 6px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: #374151;
+    cursor: pointer;
+    transition: 0.15s;
+    display: inline-block;
+  }
+  .btn-action:hover { background: #f3f4f6; }
 </style>
 </head>
 <body>
-<header class="topo">
-  <div>
-    <h1>Carteiras de Síndicos</h1>
-    <p>Visão por carteira e responsável</p>
+
+<header class="top-navbar">
+  <div class="brand-group">
+    <img src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+    <div>
+      <div class="brand-title">ALT Gestão de Condomínios</div>
+      <div class="brand-subtitle">Carteiras de Síndicos</div>
+    </div>
   </div>
-  <div class="header-actions">
-    <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
-  </div>
+  <nav class="nav-menu">
+    <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }}</span>
+    <a class="nav-link highlight" href="{{ url_for('novo') }}">＋ Novo Condomínio</a>
+    <a class="nav-link" href="{{ url_for('index') }}">Condomínios</a>
+    <a class="nav-link" href="{{ url_for('demandas_painel') }}">Demandas</a>
+    <a class="nav-link active" href="{{ url_for('carteiras') }}">Carteiras</a>
+    {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
+    <a class="nav-link" href="{{ url_for('financeiro') }}">Financeiro</a>
+    {% endif %}
+    {% if is_master_user() %}
+    <a class="nav-link" href="{{ url_for('importar') }}">Importar</a>
+    <a class="nav-link" href="{{ url_for('exportar_json') }}">Exportar</a>
+    {% endif %}
+    {% if current_user() and current_user().role in ['admin', 'master'] %}
+    <a class="nav-link" href="{{ url_for('usuarios') }}">Usuários</a>
+    <a class="nav-link" href="{{ url_for('auditoria') }}">Auditoria</a>
+    {% endif %}
+    <a class="nav-link" href="{{ url_for('logout') }}" style="opacity: 0.8;">Sair</a>
+  </nav>
 </header>
 
 <main>
-  <div class="resumo">
-    <strong>{{ total }}</strong> condomínio(s) cadastrado(s) · <strong>{{ total_profissionais }}</strong> carteira(s) profissional(is)
-  </div>
-
-  <div class="filtros">
-    <div class="campo">
-      <label for="searchWallet">Filtro por responsável</label>
-      <input id="searchWallet" type="text" placeholder="Digite nome do síndico ou responsável">
+  <!-- Métricas de Carteiras -->
+  <section class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span>Total de Condomínios</span>
+        <span>🏢</span>
+      </div>
+      <div class="kpi-num">{{ total }}</div>
+      <div class="kpi-sub">Imóveis cadastrados no sistema</div>
     </div>
-    <div class="campo">
-      <label for="tipoWallet">Tipo de carteira</label>
-      <select id="tipoWallet">
-        <option value="todos">Todos</option>
-        <option value="Carteira profissional">Profissional</option>
-        <option value="Carteira morador">Morador</option>
+
+    <div class="kpi-card purple">
+      <div class="kpi-header">
+        <span>Carteiras Profissionais</span>
+        <span>👔</span>
+      </div>
+      <div class="kpi-num" style="color: #6d28d9;">{{ total_profissionais }}</div>
+      <div class="kpi-sub">Gestões sob responsabilidade técnica</div>
+    </div>
+
+    <div class="kpi-card green">
+      <div class="kpi-header">
+        <span>Síndicos Moradores</span>
+        <span>👤</span>
+      </div>
+      <div class="kpi-num" style="color: #10b981;">{{ moradores|length if moradores else 0 }}</div>
+      <div class="kpi-sub">Gestão interna de moradores</div>
+    </div>
+  </section>
+
+  <!-- Filtro e Busca -->
+  <section class="controls-card">
+    <div class="search-wrap">
+      <span>🔍</span>
+      <input id="searchWallet" type="text" placeholder="Buscar por responsável, síndico ou condomínio..." autocomplete="off">
+    </div>
+    <div>
+      <select id="tipoWallet" class="filter-select">
+        <option value="todos">Todos os tipos de carteira</option>
+        <option value="Carteira profissional">Carteira Profissional</option>
+        <option value="Carteira morador">Carteira Morador</option>
       </select>
     </div>
-  </div>
+  </section>
 
+  <!-- Grade de Carteiras -->
   {% if wallets %}
-    <div class="grid" id="walletGrid">
+    <div class="grid-wallets" id="walletGrid">
       {% for wallet in wallets %}
+        {% set tipo_badge = 'profissional' if 'profissional' in wallet.tipo|lower else 'morador' if 'morador' in wallet.tipo|lower else 'semtipo' %}
         <article class="wallet-card" data-search="{{ wallet.search }}" data-tipo="{{ wallet.tipo }}" data-open="false">
-          <div class="wallet-top">
-            <h2>{{ wallet.sindico }}</h2>
-            <span class="badge">{{ wallet.tipo }}</span>
+          <div class="wallet-header">
+            <h2 class="wallet-title">{{ wallet.sindico }}</h2>
+            <span class="badge-tipo {{ tipo_badge }}">{{ wallet.tipo }}</span>
           </div>
-          <div class="wallet-meta"><strong>{{ wallet.condominios|length }}</strong> condomínio(s)</div>
-          <div class="acoes" style="margin-top:12px; margin-bottom:6px;">
-            <a class="btn ghost small" href="{{ url_for('pdf_wallet', responsavel=wallet.sindico, tipo=wallet.tipo) }}">PDF carteira</a>
+
+          <div class="wallet-meta">
+            <strong>{{ wallet.condominios|length }}</strong> condomínio(s) sob gestão
           </div>
-          <div class="condominios">
+
+          <div class="wallet-action-row">
+            <span class="expand-indicator">Ver condomínios</span>
+            <a class="btn-action" href="{{ url_for('pdf_wallet', responsavel=wallet.sindico, tipo=wallet.tipo) }}" target="_blank">PDF Carteira</a>
+          </div>
+
+          <div class="condominios-container">
             {% for c in wallet.condominios %}
-              <div class="condominio">
-                <strong>{{ c.nome }}</strong>
-                {% if c.empresa %}<small>{{ c.empresa }}</small>{% endif %}
-                {% if c.telefone %}<small>{{ c.telefone }}</small>{% endif %}
-                <div class="acoes">
-                  <a class="btn ghost small" href="{{ url_for('editar', cid=c.id) }}">Abrir</a>
-                  <a class="btn ghost small" href="{{ url_for('pdf', cid=c.id) }}">PDF</a>
+              <div class="condominio-row">
+                <div class="condominio-name">{{ c.nome }}</div>
+                {% if c.empresa %}<div class="condominio-sub">🏢 {{ c.empresa }}</div>{% endif %}
+                {% if c.telefone %}<div class="condominio-sub">📞 {{ c.telefone }}</div>{% endif %}
+                <div style="margin-top: 6px; display: flex; gap: 6px;">
+                  <a class="btn-action" href="{{ url_for('editar', cid=c.id) }}">Abrir Ficha</a>
+                  <a class="btn-action" href="{{ url_for('pdf', cid=c.id) }}" target="_blank">PDF</a>
                 </div>
               </div>
             {% endfor %}
@@ -98,20 +342,11 @@ footer { text-align:center; padding:25px; color:#777; font-size:13px; }
       {% endfor %}
     </div>
   {% else %}
-    <div class="vazio">
-      <strong>Nenhuma carteira encontrada.</strong>
-      <p>Cadastre condomínios com síndico profissional ou morador para visualizar as carteiras.</p>
-    </div>
-  {% endif %}
-
-  {% if moradores %}
-    <div class="resumo" style="margin-top:24px;">
-      <strong>{{ moradores|length }}</strong> condomínio(s) com síndico morador
+    <div class="controls-card" style="text-align: center; justify-content: center; color: var(--text-muted); padding: 36px;">
+      Nenhuma carteira encontrada. Cadastre condomínios com síndicos para gerar os grupos.
     </div>
   {% endif %}
 </main>
-
-<footer>ALT Gestão de Condomínios · Sistema local</footer>
 
 <script>
 const searchInput = document.getElementById('searchWallet');
@@ -126,8 +361,7 @@ function applyFilters() {
     const search = (card.dataset.search || '').toLowerCase();
     const matchesText = !text || search.includes(text);
     const matchesTipo = tipo === 'todos' || card.dataset.tipo === tipo;
-    const show = matchesText && matchesTipo;
-    card.style.display = show ? '' : 'none';
+    card.style.display = (matchesText && matchesTipo) ? '' : 'none';
   });
 }
 
@@ -136,8 +370,7 @@ tipoSelect?.addEventListener('change', applyFilters);
 
 document.querySelectorAll('.wallet-card').forEach((card) => {
   card.addEventListener('click', (event) => {
-    const target = event.target;
-    if (target.closest('a')) return;
+    if (event.target.closest('a, button')) return;
     const isOpen = card.dataset.open === 'true';
     card.dataset.open = isOpen ? 'false' : 'true';
     card.classList.toggle('active', !isOpen);

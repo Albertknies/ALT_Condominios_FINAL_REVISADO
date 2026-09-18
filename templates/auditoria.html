@@ -6,20 +6,91 @@
   <title>ALT — Relatório de acesso</title>
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    :root { --primary:#4F2C68; --primary-dark:#341846; --border:#e5e7eb; --text:#1e293b; --muted:#6b7280; --success:#10b981; --danger:#ef4444; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f8fafc; color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,sans-serif; }
+    .top-navbar { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; padding:12px 28px; display:flex; justify-content:space-between; align-items:center; gap:18px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+    .brand-group { display:flex; align-items:center; gap:12px; }
+    .brand-group img { width:34px; height:34px; border-radius:6px; background:#fff; padding:2px; }
+    .brand-title { font-size:16px; font-weight:700; line-height:1.2; }
+    .brand-subtitle { font-size:11px; opacity:.8; }
+    .nav-menu { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+    .nav-link { color:#f3e8ff; text-decoration:none; font-size:13px; font-weight:500; padding:6px 12px; border-radius:6px; }
+    .nav-link:hover { background:rgba(255,255,255,.15); color:#fff; }
+    .nav-link.highlight { background:var(--success); color:#fff; font-weight:600; }
+    .user-badge { background:rgba(255,255,255,.12); padding:5px 10px; border-radius:20px; font-size:12px; color:#f3e8ff; white-space:nowrap; }
+    main { max-width:1400px; margin:24px auto; padding:0 20px; }
+    .page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:22px; }
+    .page-kicker { color:var(--primary); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+    h1 { margin:4px 0 6px; font-size:30px; }
+    .page-subtitle { margin:0; color:var(--muted); font-size:14px; }
+    .header-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:7px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:.15s; }
+    .btn.small { padding:6px 10px; font-size:12px; }
+    .btn.ghost { background:#fff; color:#374151; }
+    .btn.ghost:hover { background:#f3f4f6; border-color:#cbd5e1; }
+    .btn.success { background:var(--success); color:#fff; border-color:var(--success); }
+    .btn.success:hover { background:#059669; }
+    .btn.danger { background:#fff; color:#dc2626; border-color:#fecaca; }
+    .btn.danger:hover { background:#fee2e2; }
+    .flash { border-radius:8px; padding:12px 14px; margin-bottom:14px; background:#fff; border:1px solid var(--border); font-size:13px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.02); margin-bottom:20px; }
+    .admin-panel { padding:20px; }
+    .card h2 { margin:0 0 18px; font-size:17px; }
+    .form-inline { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; align-items:end; }
+    .field { min-width:0; }
+    .field label { display:block; margin-bottom:6px; color:#4b5563; font-size:12px; font-weight:600; }
+    input, select { width:100%; border:1px solid var(--border); border-radius:7px; background:#fff; color:#1f2937; padding:10px; font:inherit; font-size:13px; outline:none; }
+    input:focus, select:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,44,104,.1); }
+    .password-wrap { display:flex; align-items:stretch; gap:6px; }
+    .password-wrap input { min-width:0; }
+    .toggle-password { border:1px solid var(--border); border-radius:7px; background:#f8fafc; color:#475569; padding:0 10px; font-size:12px; cursor:pointer; }
+    .toggle-password:hover { background:#f1f5f9; }
+    .list-card { overflow:hidden; }
+    .list-header { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; border-bottom:1px solid var(--border); }
+    .list-header strong { font-size:16px; }
+    .user-row { padding:18px 20px; border-bottom:1px solid #eef2f7; display:flex; justify-content:space-between; align-items:flex-start; gap:20px; }
+    .user-row:last-child { border-bottom:0; }
+    .row-main { min-width:170px; }
+    .row-main strong { display:block; font-size:14px; }
+    .row-main small { display:block; margin-top:6px; color:var(--muted); font-size:12px; }
+    .row-actions { display:flex; justify-content:flex-end; align-items:flex-start; flex-wrap:wrap; gap:10px; flex:1; }
+    .inline-form { display:flex; align-items:flex-end; flex-wrap:wrap; gap:8px; }
+    .password-inline-stack { display:flex; align-items:flex-end; flex-wrap:wrap; gap:8px; }
+    .compact-field { width:160px; }
+    .password-wrap.compact { width:210px; }
+    .empty { text-align:center; color:var(--muted); padding:28px 20px; margin:0; }
+    @media (max-width:900px) { .top-navbar { flex-direction:column; align-items:flex-start; padding:14px 18px; } .nav-menu { justify-content:flex-start; } main { padding:0 12px; margin-top:18px; } .page-head { flex-direction:column; align-items:flex-start; } .user-row { flex-direction:column; } .row-actions { justify-content:flex-start; width:100%; } .password-inline-stack, .inline-form { width:100%; } .compact-field, .password-wrap.compact { width:100%; } }
+  </style>
 </head>
 <body>
-  <header class="brand-header">
-    <div class="brand-content">
-      <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-      <div class="brand-info">
-        <strong>ALT Gestão de Condomínios</strong>
-        <span>Relatório de acesso</span>
+  <header class="top-navbar">
+    <div class="brand-group">
+      <img src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
+      <div>
+        <div class="brand-title">ALT Gestão de Condomínios</div>
+        <div class="brand-subtitle">Relatório de acesso</div>
       </div>
     </div>
-    <div class="header-actions">
-      <a class="btn ghost" href="{{ url_for('index') }}">🏠 Home</a>
-      <a class="btn ghost" href="{{ url_for('usuarios') }}">Usuários</a>
-    </div>
+    <nav class="nav-menu">
+      <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }}</span>
+      <a class="nav-link" href="{{ url_for('index') }}">Condomínios</a>
+      <a class="nav-link" href="{{ url_for('demandas_painel') }}">Demandas</a>
+      <a class="nav-link" href="{{ url_for('carteiras') }}">Carteiras</a>
+      {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
+      <a class="nav-link" href="{{ url_for('financeiro') }}">Financeiro</a>
+      {% endif %}
+      {% if is_master_user() %}
+      <a class="nav-link" href="{{ url_for('importar') }}">Importar</a>
+      <a class="nav-link" href="{{ url_for('exportar_json') }}">Exportar</a>
+      {% endif %}
+      {% if current_user() and current_user().role in ['admin', 'master'] %}
+      <a class="nav-link" href="{{ url_for('usuarios') }}">Usuários</a>
+      <a class="nav-link highlight" href="{{ url_for('auditoria') }}">Auditoria</a>
+      {% endif %}
+      <a class="nav-link" href="{{ url_for('logout') }}" style="opacity:.8;">Sair</a>
+    </nav>
   </header>
 
   <main>
@@ -27,71 +98,49 @@
       <div>
         <span class="page-kicker">Administração</span>
         <h1>Relatório de acesso</h1>
+        <p class="page-subtitle">Consulte e filtre o histórico de ações realizadas no sistema.</p>
+      </div>
+      <div class="header-actions">
+        <span class="user-badge" style="background:#f3e8ff;color:#4F2C68;">{{ current_user().username }} · {{ current_user().role }}</span>
+        <a class="btn ghost" href="{{ url_for('index') }}">Home</a>
+        <a class="btn ghost" href="{{ url_for('usuarios') }}">Usuários</a>
+        <a class="btn ghost" href="{{ url_for('logout') }}">Sair</a>
       </div>
     </div>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}" role="alert">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
     <section class="card admin-panel">
-      <h2>Filtros</h2>
-      <form method="get" action="{{ url_for('auditoria') }}" class="filter-form">
-        <div class="field">
-          <label for="usuario">Usuário</label>
-          <select id="usuario" name="usuario">
-            <option value="">Todos</option>
-            {% for user in usuarios %}
-              <option value="{{ user }}" {% if user == filtro_usuario %}selected{% endif %}>{{ user }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="acao">Ação</label>
-          <select id="acao" name="acao">
-            <option value="">Todas</option>
-            {% for action in acoes %}
-              <option value="{{ action }}" {% if action == filtro_acao %}selected{% endif %}>{{ action }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="data">Data</label>
-          <input id="data" name="data" type="date" value="{{ filtro_data }}">
-        </div>
-
-        <div class="field">
-          <label for="mes">Mês</label>
-          <input id="mes" name="mes" type="month" value="{{ filtro_mes }}">
-        </div>
-
-        <div class="filter-actions">
+      <h2>Filtros de consulta</h2>
+      <form method="get" action="{{ url_for('auditoria') }}" class="form-inline">
+        <div class="field"><label for="usuario">Usuário</label><select id="usuario" name="usuario"><option value="">Todos</option>{% for user in usuarios %}<option value="{{ user }}" {% if user == filtro_usuario %}selected{% endif %}>{{ user }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="acao">Ação</label><select id="acao" name="acao"><option value="">Todas</option>{% for action in acoes %}<option value="{{ action }}" {% if action == filtro_acao %}selected{% endif %}>{{ action }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="data">Data</label><input id="data" name="data" type="date" value="{{ filtro_data }}"></div>
+        <div class="field"><label for="mes">Mês</label><input id="mes" name="mes" type="month" value="{{ filtro_mes }}"></div>
+        <div class="header-actions">
           <button type="submit" class="btn success">Filtrar</button>
           <a class="btn ghost" href="{{ url_for('auditoria') }}">Limpar</a>
           <a class="btn ghost" href="{{ url_for('exportar_auditoria_pdf', mes=filtro_mes or '', usuario=filtro_usuario, acao=filtro_acao) }}" target="_blank" rel="noopener noreferrer">Exportar PDF</a>
-          <button type="button" class="btn ghost" onclick="window.open('{{ url_for('exportar_auditoria_pdf', mes=filtro_mes or '', usuario=filtro_usuario, acao=filtro_acao) }}', '_blank'); setTimeout(function(){ window.print(); }, 400);">Imprimir PDF</button>
+          <button type="button" class="btn ghost" onclick="window.open('{{ url_for('exportar_auditoria_pdf', mes=filtro_mes or '', usuario=filtro_usuario, acao=filtro_acao) }}', '_blank'); setTimeout(function () { window.print(); }, 400);">Imprimir PDF</button>
         </div>
       </form>
     </section>
 
     <section class="card list-card">
-      <div class="list-header">
-        <strong>Últimas ações</strong>
-        <span>{{ entries|length }} registros</span>
-      </div>
-
+      <div class="list-header"><strong>Últimas ações</strong><span class="record-count">{{ entries|length }} registros</span></div>
       {% for entry in entries %}
-        <div class="list-row audit-row">
-          <div class="row-main">
-            <strong>{{ entry.action }}</strong>
-            <small>{{ entry.username or 'Sistema' }} · {{ entry.created_at }}</small>
-            {% if entry.details %}
-              <div class="audit-details">{{ entry.details }}</div>
-            {% endif %}
-          </div>
+        <div class="user-row">
+          <div class="row-main"><strong>{{ entry.action }}</strong><small>{{ entry.username or 'Sistema' }} · {{ entry.created_at }}</small>{% if entry.details %}<div style="margin-top:8px;font-size:13px;color:#475569;">{{ entry.details }}</div>{% endif %}</div>
         </div>
       {% else %}
         <p class="empty">Nenhuma ação registrada para os filtros selecionados.</p>
       {% endfor %}
     </section>
   </main>
+  <footer>ALT Gestão de Condomínios · Sistema local</footer>
 </body>
 </html>
