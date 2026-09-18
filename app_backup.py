@@ -83,12 +83,12 @@ FIELDS = [
     "conselho", "qtdConselheiros",
     "banco", "agencia", "conta",
     "conv", "convFis", "reg", "regFis", "admFis",
-    "ppci", "validPpci", "ppciFis", "ext", "recarga", "extFis", "brig", "qtdBrig",
-    "cxData", "cxFis", "dedData", "dedFis",
-    "seg", "segEmpresa", "segData", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg",
-    "luz", "agua", "gas", "gasTipo", "codCad", "empresaGas", "codigoGasOutra",
-    "quemLimpeza", "empresaLimpeza", "freqLimpeza", "cargaLimpeza", "limpFis",
-    "seguranca", "empresaSeg", "segFis2",
+    "ppci", "validPpci", "ppciFis", "ext", "recarga", "recargaVenc", "extFis", "brig", "qtdBrig", "brigTreinoVenc",
+    "cxData", "cxVenc", "cxFis", "dedData", "dedVenc", "dedFis",
+    "seg", "segEmpresa", "segData", "segVenc", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg",
+    "luz", "agua", "gas", "gasTipo", "codCad", "leituristaGas", "contatoLeituristaGas", "empresaGas", "codigoGasOutra",
+    "quemLimpeza", "tipoLimpeza", "empresaLimpeza", "contatoEmpresaLimpeza", "nomeFuncionarioLimpeza", "funcaoLimpeza", "contatoFuncionarioLimpeza", "freqLimpeza", "cargaLimpeza", "horarioLimpeza", "limpFis",
+    "seguranca", "possuiPortaria", "tipoPortaria", "empresaPortariaFisica", "qtdFuncionariosPortaria", "empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota", "contratoPortariaFis", "empresaSeg", "segFis2",
     "juridico", "nomeJuridico", "percCobranca", "jurFis",
     "mercadinho", "nomeMerc", "respMerc", "contatoMerc", "repasseMerc", "periodoMerc", "dataMerc", "mercFis",
     "acessoSenha", "senhasAcesso", "possuiControlePortao", "qtdControlesPortao",
@@ -609,11 +609,9 @@ def get_issue_due_date(label, raw_value):
     if not due_date:
         return None
 
-    if label in {"Validade do PPCI", "Mandato do síndico"}:
+    if label in {"Validade do PPCI", "Mandato do síndico", "Limpeza da caixa d'água", "Recarga de extintor", "Seguro predial", "Dedetização"}:
         return due_date
-    if label == "Dedetização":
-        return due_date + timedelta(days=180)
-    return due_date + timedelta(days=365)
+    return due_date
 
 
 def describe_due_date(due_date, days_left):
@@ -633,11 +631,11 @@ def get_condominio_alert_status(d):
 
     checks = [
         ("Validade do PPCI", d.get("validPpci"), 30),
-        ("Limpeza da caixa d'água", d.get("cxData"), 30),
+        ("Limpeza da caixa d'água", d.get("cxVenc") or d.get("cxData"), 30),
         ("Mandato do síndico", d.get("fimMandato"), 30),
-        ("Recarga de extintor", d.get("recarga"), 30),
-        ("Seguro predial", d.get("segData"), 30),
-        ("Dedetização", d.get("dedData"), 30),
+        ("Recarga de extintor", d.get("recargaVenc") or d.get("recarga"), 30),
+        ("Seguro predial", d.get("segVenc") or d.get("segData"), 30),
+        ("Dedetização", d.get("dedVenc") or d.get("dedData"), 30),
     ]
 
     issues = []
@@ -720,7 +718,7 @@ def collect_form(form):
 
     for key in ("conselho", "conv", "convFis", "reg", "regFis", "ppci", "ppciFis", "ext", "extFis", "brig",
                 "cxFis", "dedFis", "seg", "segFis", "limpFis", "seguranca", "segFis2", "juridico", "jurFis",
-                "mercadinho", "mercFis", "admFis", "gas"):
+                "mercadinho", "mercFis", "admFis", "gas", "possuiPortaria", "contratoPortariaFis"):
         d[key] = valid_choice(d[key], YES_NO)
     d["sindicoTipo"] = valid_choice(d["sindicoTipo"], SINDICO_TIPOS)
     d["gasTipo"] = valid_choice(d["gasTipo"], GAS_TIPOS)
@@ -739,12 +737,22 @@ def collect_form(form):
         if codigo or portao:
             d["controlesPortao"].append({"codigo": codigo, "portao": portao})
 
+    d["qtdFuncionariosPortaria"] = parse_int(d["qtdFuncionariosPortaria"], 0, 100, blank="")
+    d["funcionariosPortaria"] = []
+    qtd_func_portaria = int(d["qtdFuncionariosPortaria"] or 0) if d["possuiPortaria"] == "Sim" and d["tipoPortaria"] == "Física" else 0
+    for i in range(1, qtd_func_portaria + 1):
+        nome = clean(form.get(f"nomeFuncionarioPortaria_{i}", ""), 200)
+        cpf = strip_digits(form.get(f"cpfFuncionarioPortaria_{i}", ""))
+        telefone = clean(form.get(f"telefoneFuncionarioPortaria_{i}", ""), 30)
+        if nome or cpf or telefone:
+            d["funcionariosPortaria"].append({"nome": nome, "cpf": cpf, "telefone": telefone})
+
 
     d["unidades"] = parse_int(d["unidades"], 1, 100000)
     d["qtdBrig"] = parse_int(d["qtdBrig"], 0, 100, blank="")
     d["qtdConselheiros"] = parse_int(d["qtdConselheiros"], 0, 20, blank="")
 
-    for key in ("ataEleicao", "ultAGO", "inicioMandato", "fimMandato", "validPpci", "recarga", "cxData", "dedData", "segData"):
+    for key in ("ataEleicao", "ultAGO", "inicioMandato", "fimMandato", "validPpci", "recarga", "recargaVenc", "brigTreinoVenc", "cxData", "cxVenc", "dedData", "dedVenc", "segData", "segVenc"):
         d[key] = valid_date(d[key])
 
     if d["emailSindico"] and (len(d["emailSindico"]) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", d["emailSindico"])):
@@ -802,6 +810,20 @@ def collect_form(form):
 
     if d["mercadinho"] != "Sim":
         for key in ("nomeMerc", "respMerc", "contatoMerc", "repasseMerc", "periodoMerc", "dataMerc", "mercFis"): d[key] = ""
+
+    if d["tipoLimpeza"] not in {"Empresa terceirizada", "Misto"}:
+        for key in ("empresaLimpeza", "contatoEmpresaLimpeza"): d[key] = ""
+    if d["tipoLimpeza"] not in {"Funcionário próprio", "Misto"}:
+        for key in ("nomeFuncionarioLimpeza", "funcaoLimpeza", "contatoFuncionarioLimpeza"): d[key] = ""
+
+    if d["possuiPortaria"] != "Sim":
+        for key in ("tipoPortaria", "empresaPortariaFisica", "qtdFuncionariosPortaria", "empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota", "contratoPortariaFis"): d[key] = ""
+        d["funcionariosPortaria"] = []
+    elif d["tipoPortaria"] == "Física":
+        for key in ("empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota"): d[key] = ""
+    elif d["tipoPortaria"] == "Remota":
+        for key in ("empresaPortariaFisica", "qtdFuncionariosPortaria"): d[key] = ""
+        d["funcionariosPortaria"] = []
 
     if d["gas"] != "Sim":
         d["gasTipo"] = d["codCad"] = d["empresaGas"] = d["codigoGasOutra"] = ""
@@ -2593,9 +2615,11 @@ def pdf(cid):
         ("PPCI impresso", yn(d.get("ppciFis"))),
         ("Extintores em situação regular", yn(d.get("ext"))),
         ("Data da última recarga", format_date(d.get("recarga"))),
+        ("Próxima recarga", format_date(d.get("recargaVenc"))),
         ("Documento dos extintores impresso", yn(d.get("extFis"))),
         ("Possui brigadistas", yn(d.get("brig"))),
         ("Quantidade de brigadistas", d.get("qtdBrig")),
+        ("Vencimento do treinamento", format_date(d.get("brigTreinoVenc"))),
     ])
     for i, item in enumerate(d.get("brigadistas", []), 1):
         add_section(story, f"BRIGADISTA {i}", [
@@ -2605,8 +2629,10 @@ def pdf(cid):
 
     add_section(story, "7. LIMPEZA DA CAIXA D'ÁGUA E DEDETIZAÇÃO", [
         ("Data da última limpeza da caixa d'água", format_date(d.get("cxData"))),
+        ("Próxima limpeza", format_date(d.get("cxVenc"))),
         ("Comprovante da limpeza impresso", yn(d.get("cxFis"))),
         ("Data da última dedetização", format_date(d.get("dedData"))),
+        ("Próxima dedetização", format_date(d.get("dedVenc"))),
         ("Comprovante da dedetização impresso", yn(d.get("dedFis"))),
     ])
 
@@ -2616,6 +2642,7 @@ def pdf(cid):
         ("Corretor responsável", d.get("corretorResponsavelSeg")),
         ("Contato do corretor", d.get("contatoCorretorSeg")),
         ("Data da última contratação/renovação", format_date(d.get("segData"))),
+        ("Vencimento do seguro", format_date(d.get("segVenc"))),
         ("Apólice impressa na pasta física", yn(d.get("segFis"))),
     ])
 
@@ -2627,21 +2654,39 @@ def pdf(cid):
         ("Código de cadastramento", d.get("codCad")),
         ("Empresa de gás", d.get("empresaGas")),
         ("Código para cadastro", d.get("codigoGasOutra")),
+        ("Nome do leiturista", d.get("leituristaGas")),
+        ("Contato do leiturista", d.get("contatoLeituristaGas")),
     ])
 
     add_section(story, "10. LIMPEZA DO CONDOMÍNIO", [
-        ("Quem realiza a limpeza", d.get("quemLimpeza")),
+        ("Tipo de limpeza", d.get("tipoLimpeza")),
+        ("Responsável pela limpeza", d.get("quemLimpeza")),
         ("Empresa", d.get("empresaLimpeza")),
+        ("Contato da empresa", d.get("contatoEmpresaLimpeza")),
+        ("Nome do funcionário", d.get("nomeFuncionarioLimpeza")),
+        ("Função", d.get("funcaoLimpeza")),
+        ("Contato do funcionário", d.get("contatoFuncionarioLimpeza")),
         ("Frequência", d.get("freqLimpeza")),
         ("Carga horária", d.get("cargaLimpeza")),
+        ("Horário de trabalho", d.get("horarioLimpeza")),
         ("Contrato de limpeza impresso", yn(d.get("limpFis"))),
     ])
 
-    add_section(story, "11. SEGURANÇA / PORTARIA", [
-        ("Possui segurança/portaria", yn(d.get("seguranca"))),
-        ("Empresa responsável", d.get("empresaSeg")),
-        ("Contrato impresso", yn(d.get("segFis2"))),
-    ])
+    portaria_rows = [
+        ("Possui portaria", yn(d.get("possuiPortaria"))),
+        ("Tipo de portaria", d.get("tipoPortaria")),
+        ("Empresa da portaria física", d.get("empresaPortariaFisica")),
+        ("Quantidade de funcionários", d.get("qtdFuncionariosPortaria")),
+        ("Empresa da portaria remota", d.get("empresaPortariaRemota")),
+        ("Contato da portaria remota", d.get("contatoPortariaRemota")),
+        ("Responsável pela portaria remota", d.get("responsavelPortariaRemota")),
+        ("E-mail da portaria remota", d.get("emailPortariaRemota")),
+        ("Contrato de portaria impresso", yn(d.get("contratoPortariaFis"))),
+    ]
+    for i, item in enumerate(d.get("funcionariosPortaria", []), 1):
+        portaria_rows += [(f"Funcionário {i} — nome", item.get("nome")), (f"Funcionário {i} — CPF", item.get("cpf")), (f"Funcionário {i} — telefone", item.get("telefone"))]
+    portaria_rows += [("Segurança adicional", yn(d.get("seguranca"))), ("Empresa de segurança", d.get("empresaSeg")), ("Contrato de segurança impresso", yn(d.get("segFis2")))]
+    add_section(story, "11. PORTARIA E SEGURANÇA", portaria_rows)
 
     add_section(story, "12. JURÍDICO / COBRANÇA", [
         ("Possui advogado/escritório", yn(d.get("juridico"))),
@@ -2776,6 +2821,139 @@ def demandas_painel():
         total_proximas=proximas,
         total_em_dia=em_dia,
         today=today.isoformat(),
+    )
+
+
+@app.get("/demandas/relatorio")
+@login_required
+def relatorio_demandas():
+    """Gera um relatório PDF com todas as demandas cadastradas."""
+    today = datetime.now().date()
+    with conn() as c:
+        rows = c.execute("""
+            SELECT d.*, c.nome AS condominio_nome
+            FROM demandas d
+            LEFT JOIN condominios c ON c.id = d.condominio_id
+            ORDER BY
+                CASE WHEN d.status = 'Concluída' THEN 1 ELSE 0 END,
+                d.data_vencimento ASC,
+                d.id DESC
+        """).fetchall()
+
+    def fmt_date(value):
+        try:
+            return datetime.strptime(str(value), "%Y-%m-%d").strftime("%d/%m/%Y")
+        except (TypeError, ValueError):
+            return str(value or "—")
+
+    def status_prazo(row):
+        if row["status"] == "Concluída":
+            return "Concluída"
+        try:
+            days = (datetime.strptime(row["data_vencimento"], "%Y-%m-%d").date() - today).days
+        except (TypeError, ValueError):
+            return "Sem prazo válido"
+        if days < 0:
+            return f"Vencida há {abs(days)} dia(s)"
+        if days == 0:
+            return "Vence hoje"
+        return f"Vence em {days} dia(s)"
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=28,
+        leftMargin=28,
+        topMargin=32,
+        bottomMargin=32,
+        title="Relatório de Demandas — ALT Gestão de Condomínios",
+        author="ALT Gestão de Condomínios",
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "AltReportTitle", parent=styles["Title"], fontName="Helvetica-Bold",
+        fontSize=18, leading=22, textColor=colors.HexColor("#4F2C68"),
+        spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        "AltReportSubtitle", parent=styles["Normal"], fontSize=9,
+        textColor=colors.HexColor("#64748B"), spaceAfter=14,
+    )
+    cell_style = ParagraphStyle(
+        "AltReportCell", parent=styles["Normal"], fontSize=7.5,
+        leading=9, textColor=colors.HexColor("#1E293B"),
+    )
+    header_style = ParagraphStyle(
+        "AltReportHeader", parent=cell_style, fontName="Helvetica-Bold",
+        textColor=colors.white,
+    )
+
+    total = len(rows)
+    concluidas = sum(1 for r in rows if r["status"] == "Concluída")
+    pendentes = total - concluidas
+    vencidas = sum(
+        1 for r in rows
+        if r["status"] != "Concluída"
+        and parse_date_value(r["data_vencimento"])
+        and parse_date_value(r["data_vencimento"]) < today
+    )
+
+    story = [
+        Paragraph("ALT Gestão de Condomínios", title_style),
+        Paragraph(
+            f"Relatório geral de demandas · Emitido em {today.strftime('%d/%m/%Y')} · "
+            f"Total: {total} · Pendentes: {pendentes} · Concluídas: {concluidas} · Vencidas: {vencidas}",
+            subtitle_style,
+        ),
+    ]
+
+    data = [[
+        Paragraph("Demanda", header_style),
+        Paragraph("Condomínio", header_style),
+        Paragraph("Vencimento", header_style),
+        Paragraph("Prazo", header_style),
+        Paragraph("Prioridade", header_style),
+        Paragraph("Categoria", header_style),
+        Paragraph("Responsável", header_style),
+        Paragraph("Status", header_style),
+    ]]
+    for row in rows:
+        data.append([
+            Paragraph(html.escape(str(row["titulo"] or "—")), cell_style),
+            Paragraph(html.escape(str(row["condominio_nome"] or "—")), cell_style),
+            Paragraph(fmt_date(row["data_vencimento"]), cell_style),
+            Paragraph(html.escape(status_prazo(row)), cell_style),
+            Paragraph(html.escape(str(row["prioridade"] or "—")), cell_style),
+            Paragraph(html.escape(str(row["categoria"] or "—")), cell_style),
+            Paragraph(html.escape(str(row["responsavel"] or "Não informado")), cell_style),
+            Paragraph(html.escape(str(row["status"] or "Pendente")), cell_style),
+        ])
+
+    if len(data) == 1:
+        data.append([Paragraph("Nenhuma demanda cadastrada.", cell_style)] + [""] * 7)
+
+    table = Table(data, colWidths=[78, 94, 53, 66, 48, 58, 62, 53], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4F2C68")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8D1E2")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F5FB")]),
+    ]))
+    story.append(table)
+    doc.build(story)
+    buffer.seek(0)
+    log_audit("relatorio_demandas", f"Relatório de demandas gerado por {session.get('username')}", session.get('username'))
+    return send_file(
+        buffer,
+        as_attachment=(request.args.get("visualizar") != "1"),
+        download_name=f"ALT-relatorio-demandas-{today.isoformat()}.pdf",
+        mimetype="application/pdf",
     )
 
 

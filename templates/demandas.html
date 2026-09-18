@@ -201,6 +201,52 @@
   }
   .btn-submit:hover { background: #059669; }
   .is-done { opacity: 0.55; text-decoration: line-through; }
+
+  .btn-report {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    background: linear-gradient(135deg, #4F2C68 0%, #6D3C89 100%);
+    color: #fff;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 9px 13px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(79, 44, 104, 0.16);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    white-space: nowrap;
+  }
+
+  .btn-report:hover {
+    background: linear-gradient(135deg, #321B45 0%, #4F2C68 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(79, 44, 104, 0.24);
+    color: #fff;
+  }
+
+  .list-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 560px) {
+    .list-header-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .btn-report {
+      flex: 1;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -334,9 +380,24 @@
 
     <!-- Lista de Demandas -->
     <section class="panel-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px;">
         <h3 style="margin: 0; color: #1e293b; font-size: 16px;">Lista de Demandas</h3>
-        <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">{{ demandas|length }} cadastrada(s)</span>
+
+        <div class="list-header-actions">
+          <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">
+            {{ demandas|length }} cadastrada(s)
+          </span>
+
+          <a href="/demandas/relatorio"
+             target="_blank"
+             rel="noopener"
+             class="btn-report"
+             aria-label="Gerar relatório PDF das demandas"
+             title="Gerar relatório PDF das demandas">
+            <span aria-hidden="true">📄</span>
+            Gerar relatório PDF
+          </a>
+        </div>
       </div>
 
       {% for d in demandas %}

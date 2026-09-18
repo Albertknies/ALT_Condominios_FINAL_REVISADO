@@ -2824,6 +2824,139 @@ def demandas_painel():
     )
 
 
+@app.get("/demandas/relatorio")
+@login_required
+def relatorio_demandas():
+    """Gera um relatório PDF com todas as demandas cadastradas."""
+    today = datetime.now().date()
+    with conn() as c:
+        rows = c.execute("""
+            SELECT d.*, c.nome AS condominio_nome
+            FROM demandas d
+            LEFT JOIN condominios c ON c.id = d.condominio_id
+            ORDER BY
+                CASE WHEN d.status = 'Concluída' THEN 1 ELSE 0 END,
+                d.data_vencimento ASC,
+                d.id DESC
+        """).fetchall()
+
+    def fmt_date(value):
+        try:
+            return datetime.strptime(str(value), "%Y-%m-%d").strftime("%d/%m/%Y")
+        except (TypeError, ValueError):
+            return str(value or "—")
+
+    def status_prazo(row):
+        if row["status"] == "Concluída":
+            return "Concluída"
+        try:
+            days = (datetime.strptime(row["data_vencimento"], "%Y-%m-%d").date() - today).days
+        except (TypeError, ValueError):
+            return "Sem prazo válido"
+        if days < 0:
+            return f"Vencida há {abs(days)} dia(s)"
+        if days == 0:
+            return "Vence hoje"
+        return f"Vence em {days} dia(s)"
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=28,
+        leftMargin=28,
+        topMargin=32,
+        bottomMargin=32,
+        title="Relatório de Demandas — ALT Gestão de Condomínios",
+        author="ALT Gestão de Condomínios",
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "AltReportTitle", parent=styles["Title"], fontName="Helvetica-Bold",
+        fontSize=18, leading=22, textColor=colors.HexColor("#4F2C68"),
+        spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        "AltReportSubtitle", parent=styles["Normal"], fontSize=9,
+        textColor=colors.HexColor("#64748B"), spaceAfter=14,
+    )
+    cell_style = ParagraphStyle(
+        "AltReportCell", parent=styles["Normal"], fontSize=7.5,
+        leading=9, textColor=colors.HexColor("#1E293B"),
+    )
+    header_style = ParagraphStyle(
+        "AltReportHeader", parent=cell_style, fontName="Helvetica-Bold",
+        textColor=colors.white,
+    )
+
+    total = len(rows)
+    concluidas = sum(1 for r in rows if r["status"] == "Concluída")
+    pendentes = total - concluidas
+    vencidas = sum(
+        1 for r in rows
+        if r["status"] != "Concluída"
+        and parse_date_value(r["data_vencimento"])
+        and parse_date_value(r["data_vencimento"]) < today
+    )
+
+    story = [
+        Paragraph("ALT Gestão de Condomínios", title_style),
+        Paragraph(
+            f"Relatório geral de demandas · Emitido em {today.strftime('%d/%m/%Y')} · "
+            f"Total: {total} · Pendentes: {pendentes} · Concluídas: {concluidas} · Vencidas: {vencidas}",
+            subtitle_style,
+        ),
+    ]
+
+    data = [[
+        Paragraph("Demanda", header_style),
+        Paragraph("Condomínio", header_style),
+        Paragraph("Vencimento", header_style),
+        Paragraph("Prazo", header_style),
+        Paragraph("Prioridade", header_style),
+        Paragraph("Categoria", header_style),
+        Paragraph("Responsável", header_style),
+        Paragraph("Status", header_style),
+    ]]
+    for row in rows:
+        data.append([
+            Paragraph(html.escape(str(row["titulo"] or "—")), cell_style),
+            Paragraph(html.escape(str(row["condominio_nome"] or "—")), cell_style),
+            Paragraph(fmt_date(row["data_vencimento"]), cell_style),
+            Paragraph(html.escape(status_prazo(row)), cell_style),
+            Paragraph(html.escape(str(row["prioridade"] or "—")), cell_style),
+            Paragraph(html.escape(str(row["categoria"] or "—")), cell_style),
+            Paragraph(html.escape(str(row["responsavel"] or "Não informado")), cell_style),
+            Paragraph(html.escape(str(row["status"] or "Pendente")), cell_style),
+        ])
+
+    if len(data) == 1:
+        data.append([Paragraph("Nenhuma demanda cadastrada.", cell_style)] + [""] * 7)
+
+    table = Table(data, colWidths=[78, 94, 53, 66, 48, 58, 62, 53], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4F2C68")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8D1E2")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F5FB")]),
+    ]))
+    story.append(table)
+    doc.build(story)
+    buffer.seek(0)
+    log_audit("relatorio_demandas", f"Relatório de demandas gerado por {session.get('username')}", session.get('username'))
+    return send_file(
+        buffer,
+        as_attachment=(request.args.get("visualizar") != "1"),
+        download_name=f"ALT-relatorio-demandas-{today.isoformat()}.pdf",
+        mimetype="application/pdf",
+    )
+
+
 @app.post("/demandas/salvar")
 @login_required
 def salvar_demanda():
