@@ -117,6 +117,12 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
   main { padding:0 12px; margin-top:18px; }
   .finance-panel { padding:14px; }
 }
+
+  .scope-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:#faf7fc; }
+  .scope-toolbar label { font-size:12px; font-weight:700; color:#4f2c68; }
+  .scope-toolbar select { min-width:260px; max-width:100%; padding:10px 12px; border:1px solid #d8cde2; border-radius:8px; background:#fff; color:#241632; font-weight:600; }
+  .scope-badge { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:999px; background:#eee5f5; color:#4f2c68; font-size:12px; font-weight:800; }
+
 </style>
 
 </head>
@@ -189,14 +195,31 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
   <section class="card finance-panel">
     <div class="list-header">
       <div>
-        <strong>ALT — Receita, despesas e saldo</strong>
-        <small>Controle financeiro da empresa: entrada dos condomínios e despesas mensais da ALT.</small>
+        <strong>{{ scope.label }}</strong>
+        <small>Controle financeiro separado por administradora ou condomínio selecionado.</small>
       </div>
       <div class="header-actions compact">
-        <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, data_inicio=summary.data_inicio, data_fim=summary.data_fim) }}">Atualizar</a>
-        <a class="btn ghost small" href="{{ url_for('relatorio_financeiro', mes=mes, data_inicio=summary.data_inicio, data_fim=summary.data_fim) }}">Relatório PDF</a>
+        <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, data_inicio=summary.data_inicio, data_fim=summary.data_fim, escopo=(scope_condominio_id if scope_condominio_id else 'ALT')) }}">Atualizar</a>
+        <a class="btn ghost small" href="{{ url_for('relatorio_financeiro', mes=mes, data_inicio=summary.data_inicio, data_fim=summary.data_fim, escopo=(scope_condominio_id if scope_condominio_id else 'ALT')) }}">Relatório PDF</a>
       </div>
     </div>
+
+    <form class="scope-toolbar" method="get" action="{{ url_for('financeiro') }}">
+      <input type="hidden" name="mes" value="{{ mes }}">
+      <input type="hidden" name="data_inicio" value="{{ summary.data_inicio }}">
+      <input type="hidden" name="data_fim" value="{{ summary.data_fim }}">
+      <input type="hidden" name="aba" value="resumo">
+      <label for="financeScope">Visualizar movimentações de:</label>
+      <select id="financeScope" name="escopo" onchange="this.form.submit()" {% if current_user() and current_user().role == 'normal' and not condominios %}disabled{% endif %}>
+        {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
+        <option value="ALT" {% if scope_tipo == 'ALT' %}selected{% endif %}>ALT — Administradora</option>
+        {% endif %}
+        {% for cond in condominios %}
+        <option value="{{ cond.id }}" {% if scope_condominio_id == cond.id %}selected{% endif %}>{{ cond.nome }}</option>
+        {% endfor %}
+      </select>
+      <span class="scope-badge">{{ scope.label }}</span>
+    </form>
 
     <div class="finance-tabs" data-tabs>
       <div class="finance-tabs-header">
@@ -259,12 +282,13 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
                 <td>{{ item.status or 'Recebido' }}</td>
                 <td>
                   <div class="header-actions compact">
-                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_receita=item.id) }}">Editar</a>
+                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_receita=item.id, escopo=(scope_condominio_id if scope_condominio_id else 'ALT')) }}">Editar</a>
                     <form method="post"
                           action="{{ url_for('excluir_receita', receita_id=item.id, mes=mes) }}"
                           onsubmit="return confirm('Tem certeza que deseja excluir esta receita?');"
                           style="display:inline;">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="escopo" value="{{ scope_condominio_id if scope_condominio_id else 'ALT' }}">
                       <button type="submit" class="btn danger small">Excluir</button>
                     </form>
                   </div>
@@ -281,12 +305,13 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
                 <td>{{ item.status or 'Pendente' }}</td>
                 <td>
                   <div class="header-actions compact">
-                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_despesa=item.id) }}">Editar</a>
+                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_despesa=item.id, escopo=(scope_condominio_id if scope_condominio_id else 'ALT')) }}">Editar</a>
                     <form method="post"
                           action="{{ url_for('excluir_despesa', despesa_id=item.id, mes=mes) }}"
                           onsubmit="return confirm('Tem certeza que deseja excluir esta despesa?');"
                           style="display:inline;">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="escopo" value="{{ scope_condominio_id if scope_condominio_id else 'ALT' }}">
                       <button type="submit" class="btn danger small">Excluir</button>
                     </form>
                   </div>
@@ -329,9 +354,10 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
                 <td>{{ item.status or 'Recebido' }}</td>
                 <td>
                   <div class="header-actions compact">
-                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_receita=item.id) }}">Editar</a>
+                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_receita=item.id, escopo=(scope_condominio_id if scope_condominio_id else 'ALT')) }}">Editar</a>
                     <form method="post" action="{{ url_for('excluir_receita', receita_id=item.id, mes=mes) }}" onsubmit="return confirm('Excluir esta receita?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="escopo" value="{{ scope_condominio_id if scope_condominio_id else 'ALT' }}">
                     <button type="submit" class="btn danger small">Excluir</button>
                     </form>
                   </div>
@@ -347,6 +373,7 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
         <div id="panel-receita-form" class="finance-panel-form{% if not editar_receita %} hidden{% endif %}">
           <form class="finance-form" method="post" action="{% if editar_receita %}{{ url_for('editar_receita', receita_id=editar_receita.id) }}{% else %}{{ url_for('salvar_receita') }}{% endif %}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="escopo" value="{{ scope_condominio_id if scope_condominio_id else 'ALT' }}">
             <label>Origem
               <select name="grupo" required>
                 <option value="ALT" {% if editar_receita and editar_receita.grupo == 'ALT' %}selected{% endif %}>ALT</option>
@@ -432,9 +459,10 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
                 <td>{{ item.status or 'Pendente' }}</td>
                 <td>
                   <div class="header-actions compact">
-                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_despesa=item.id) }}">Editar</a>
+                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_despesa=item.id, escopo=(scope_condominio_id if scope_condominio_id else 'ALT')) }}">Editar</a>
                     <form method="post" action="{{ url_for('excluir_despesa', despesa_id=item.id, mes=mes) }}" onsubmit="return confirm('Excluir esta despesa?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="escopo" value="{{ scope_condominio_id if scope_condominio_id else 'ALT' }}">
                     <button type="submit" class="btn danger small">Excluir</button>
                     </form>
                   </div>
@@ -450,6 +478,7 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
         <div id="panel-despesa-form" class="finance-panel-form{% if not editar_despesa %} hidden{% endif %}">
           <form class="finance-form" method="post" action="{% if editar_despesa %}{{ url_for('editar_despesa', despesa_id=editar_despesa.id) }}{% else %}{{ url_for('salvar_despesa') }}{% endif %}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="escopo" value="{{ scope_condominio_id if scope_condominio_id else 'ALT' }}">
             <label>Nome da despesa
               <input type="text" name="nome" maxlength="200" placeholder="Ex.: Internet, salário, aluguel" required value="{{ editar_despesa.nome if editar_despesa else '' }}">
             </label>
@@ -520,6 +549,7 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
                 <td>
                   <form method="post" action="{{ url_for('excluir_categoria', categoria_id=item.id, mes=mes) }}" onsubmit="return confirm('Excluir esta categoria?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="escopo" value="{{ scope_condominio_id if scope_condominio_id else 'ALT' }}">
                     <button type="submit" class="btn danger small">Excluir</button>
                   </form>
                 </td>
@@ -534,6 +564,7 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
         <div id="panel-categoria-form" class="finance-panel-form hidden">
           <form class="finance-form" method="post" action="{{ url_for('salvar_categoria') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="escopo" value="{{ scope_condominio_id if scope_condominio_id else 'ALT' }}">
             <label>Nome da categoria
               <input type="text" name="nome" maxlength="100" placeholder="Ex.: Condomínio, Aluguel, Energia..." required>
             </label>

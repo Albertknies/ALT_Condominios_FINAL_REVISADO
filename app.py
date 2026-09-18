@@ -83,12 +83,12 @@ FIELDS = [
     "conselho", "qtdConselheiros",
     "banco", "agencia", "conta",
     "conv", "convFis", "reg", "regFis", "admFis",
-    "ppci", "validPpci", "ppciFis", "ext", "recarga", "recargaVenc", "extFis", "brig", "qtdBrig", "brigTreinoVenc",
-    "cxData", "cxVenc", "cxFis", "dedData", "dedVenc", "dedFis",
-    "seg", "segEmpresa", "segData", "segVenc", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg",
-    "luz", "agua", "gas", "gasTipo", "codCad", "leituristaGas", "contatoLeituristaGas", "empresaGas", "codigoGasOutra",
-    "quemLimpeza", "tipoLimpeza", "empresaLimpeza", "contatoEmpresaLimpeza", "nomeFuncionarioLimpeza", "funcaoLimpeza", "contatoFuncionarioLimpeza", "freqLimpeza", "cargaLimpeza", "horarioLimpeza", "limpFis",
-    "seguranca", "possuiPortaria", "tipoPortaria", "empresaPortariaFisica", "qtdFuncionariosPortaria", "empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota", "contratoPortariaFis", "empresaSeg", "segFis2",
+    "ppci", "validPpci", "ppciFis", "ext", "recarga", "extFis", "brig", "qtdBrig",
+    "cxData", "cxFis", "dedData", "dedFis",
+    "seg", "segEmpresa", "segData", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg",
+    "luz", "agua", "gas", "gasTipo", "codCad", "empresaGas", "codigoGasOutra",
+    "quemLimpeza", "empresaLimpeza", "freqLimpeza", "cargaLimpeza", "limpFis",
+    "seguranca", "empresaSeg", "segFis2",
     "juridico", "nomeJuridico", "percCobranca", "jurFis",
     "mercadinho", "nomeMerc", "respMerc", "contatoMerc", "repasseMerc", "periodoMerc", "dataMerc", "mercFis",
     "acessoSenha", "senhasAcesso", "possuiControlePortao", "qtdControlesPortao",
@@ -190,7 +190,6 @@ def init_db():
             c.execute("""CREATE TABLE IF NOT EXISTS usuarios (
                 id BIGSERIAL PRIMARY KEY,
                 username TEXT NOT NULL UNIQUE,
-                email TEXT,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'normal',
                 created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP::text)
@@ -265,12 +264,22 @@ def init_db():
                         (MASTER_USERNAME, generate_password_hash(MASTER_PASSWORD), "master", datetime.now().isoformat(timespec="seconds")),
                     )
 
-            admin = c.execute("SELECT 1 FROM usuarios WHERE username = %s", ("admin",)).fetchone()
+            admin = c.execute("SELECT * FROM usuarios WHERE username = %s", ("admin",)).fetchone()
             if admin is None:
                 c.execute(
                     "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(%s,%s,%s,%s)",
                     ("admin", generate_password_hash("admin"), "admin", datetime.now().isoformat(timespec="seconds")),
                 )
+            else:
+                try:
+                    admin_password_ok = check_password_hash(admin["password_hash"], "admin")
+                except Exception:
+                    admin_password_ok = False
+                if not admin_password_ok or admin["role"] != "admin":
+                    c.execute(
+                        "UPDATE usuarios SET password_hash=%s, role=%s WHERE username=%s",
+                        (generate_password_hash("admin"), "admin", "admin"),
+                    )
             c.commit()
         return
 
@@ -286,7 +295,6 @@ def init_db():
         c.execute("""CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
-            email TEXT,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'normal',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -354,12 +362,22 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_financeiro_categorias_tipo ON financeiro_categorias(tipo)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_demandas_vencimento ON demandas(data_vencimento)")
 
-        admin = c.execute("SELECT 1 FROM usuarios WHERE username = ?", ("admin",)).fetchone()
+        admin = c.execute("SELECT * FROM usuarios WHERE username = ?", ("admin",)).fetchone()
         if admin is None:
             c.execute(
                 "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(?,?,?,?)",
                 ("admin", generate_password_hash("admin"), "admin", datetime.now().isoformat(timespec="seconds")),
             )
+        else:
+            try:
+                admin_password_ok = check_password_hash(admin["password_hash"], "admin")
+            except Exception:
+                admin_password_ok = False
+            if not admin_password_ok or admin["role"] != "admin":
+                c.execute(
+                    "UPDATE usuarios SET password_hash=?, role=? WHERE username=?",
+                    (generate_password_hash("admin"), "admin", "admin"),
+                )
         if MASTER_PASSWORD:
             master = c.execute("SELECT 1 FROM usuarios WHERE username = ?", (MASTER_USERNAME,)).fetchone()
             if master is None:
@@ -385,6 +403,7 @@ def ensure_finance_schema():
                 "status": "TEXT DEFAULT 'Recebido'",
             },
             "financeiro_despesas": {
+                "condominio_id": "BIGINT" if IS_POSTGRES else "INTEGER",
                 "categoria": "TEXT",
                 "fornecedor": "TEXT",
                 "metodo_pagamento": "TEXT",
@@ -420,22 +439,7 @@ def ensure_finance_schema():
         c.commit()
 
 
-def ensure_user_email_column():
-    """Adiciona a coluna de e-mail em bancos já existentes, sem apagar dados."""
-    with conn() as c:
-        try:
-            c.execute("ALTER TABLE usuarios ADD COLUMN email TEXT")
-            c.commit()
-        except Exception:
-            # A coluna já existe ou o banco não permite a alteração neste momento.
-            try:
-                c.rollback()
-            except Exception:
-                pass
-
-
 init_db()
-ensure_user_email_column()
 
 
 def clean(v, limit=5000):
@@ -542,14 +546,54 @@ def get_finance_period(month_text, start_text=None, end_text=None):
     return month_text, start_date.isoformat(), end_date.isoformat()
 
 
-def get_finance_summary(month_text, start_text=None, end_text=None):
-    month_text, data_inicio, data_fim = get_finance_period(month_text, start_text, end_text)
-    receita_data = "COALESCE(NULLIF(r.data_pagamento, ''), r.mes_referencia || '-01')"
+def get_finance_scope():
+    """Retorna o escopo financeiro permitido para o usuário atual.
+    ALT = contas da administradora; CONDOMINIO = contas de um condomínio.
+    Perfis normais nunca podem acessar as contas da ALT.
+    """
+    user = current_user() or {}
+    role = (user.get("role") or "normal").lower()
+    requested = clean(request.values.get("escopo", "ALT"), 40)
+
+    if role == "normal":
+        requested = "CONDOMINIO"
+
+    if requested.upper() == "ALT":
+        return {"tipo": "ALT", "condominio_id": None, "label": "ALT — Administradora"}
+
+    if requested.isdigit():
+        cid = int(requested)
+        with conn() as c:
+            row = c.execute("SELECT id, nome FROM condominios WHERE id = ?", (cid,)).fetchone()
+        if row:
+            return {"tipo": "CONDOMINIO", "condominio_id": cid, "label": row["nome"]}
+
     with conn() as c:
-        receita_total = c.execute(f"SELECT COALESCE(SUM(r.valor), 0) FROM financeiro_receitas r WHERE {receita_data} BETWEEN ? AND ?", (data_inicio, data_fim)).fetchone()[0] or 0
-        despesa_total = c.execute("SELECT COALESCE(SUM(valor), 0) FROM financeiro_despesas WHERE vencimento BETWEEN ? AND ?", (data_inicio, data_fim)).fetchone()[0] or 0
-        receitas = c.execute(f"SELECT r.id, r.condominio_id, c.nome AS condominio, r.grupo, r.categoria, r.valor, r.data_pagamento, r.metodo_pagamento, r.numero_documento, r.status, r.mes_referencia, r.observacao, r.created_at FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id WHERE {receita_data} BETWEEN ? AND ? ORDER BY {receita_data} DESC, r.id DESC", (data_inicio, data_fim)).fetchall()
-        despesas = c.execute("SELECT * FROM financeiro_despesas WHERE vencimento BETWEEN ? AND ? ORDER BY vencimento DESC, id DESC", (data_inicio, data_fim)).fetchall()
+        row = c.execute("SELECT id, nome FROM condominios ORDER BY nome COLLATE NOCASE LIMIT 1").fetchone()
+    return {
+        "tipo": "CONDOMINIO",
+        "condominio_id": row["id"] if row else None,
+        "label": row["nome"] if row else "Nenhum condomínio",
+    }
+
+
+def finance_scope_conditions(scope):
+    if scope["tipo"] == "ALT":
+        return "r.condominio_id IS NULL", "d.condominio_id IS NULL", []
+    return "r.condominio_id = ?", "d.condominio_id = ?", [scope["condominio_id"]]
+
+
+def get_finance_summary(month_text, start_text=None, end_text=None, scope=None):
+    month_text, data_inicio, data_fim = get_finance_period(month_text, start_text, end_text)
+    scope = scope or {"tipo": "ALT", "condominio_id": None, "label": "ALT — Administradora"}
+    receita_condition, despesa_condition, scope_params = finance_scope_conditions(scope)
+    receita_data = "COALESCE(NULLIF(r.data_pagamento, ''), r.mes_referencia || '-01')"
+    receita_condition, despesa_condition, scope_params = finance_scope_conditions(scope)
+    with conn() as c:
+        receita_total = c.execute(f"SELECT COALESCE(SUM(r.valor), 0) FROM financeiro_receitas r WHERE {receita_condition} AND {receita_data} BETWEEN ? AND ?", (*scope_params, data_inicio, data_fim)).fetchone()[0] or 0
+        despesa_total = c.execute(f"SELECT COALESCE(SUM(d.valor), 0) FROM financeiro_despesas d WHERE {despesa_condition} AND d.vencimento BETWEEN ? AND ?", (*scope_params, data_inicio, data_fim)).fetchone()[0] or 0
+        receitas = c.execute(f"SELECT r.id, r.condominio_id, c.nome AS condominio, r.grupo, r.categoria, r.valor, r.data_pagamento, r.metodo_pagamento, r.numero_documento, r.status, r.mes_referencia, r.observacao, r.created_at FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id WHERE {receita_condition} AND {receita_data} BETWEEN ? AND ? ORDER BY {receita_data} DESC, r.id DESC", (*scope_params, data_inicio, data_fim)).fetchall()
+        despesas = c.execute(f"SELECT * FROM financeiro_despesas d WHERE {despesa_condition} AND d.vencimento BETWEEN ? AND ? ORDER BY d.vencimento DESC, d.id DESC", (*scope_params, data_inicio, data_fim)).fetchall()
     receitas_formatted = []
     for row in receitas:
         item = dict(row)
@@ -626,9 +670,11 @@ def get_issue_due_date(label, raw_value):
     if not due_date:
         return None
 
-    if label in {"Validade do PPCI", "Mandato do síndico", "Limpeza da caixa d'água", "Recarga de extintor", "Seguro predial", "Dedetização"}:
+    if label in {"Validade do PPCI", "Mandato do síndico"}:
         return due_date
-    return due_date
+    if label == "Dedetização":
+        return due_date + timedelta(days=180)
+    return due_date + timedelta(days=365)
 
 
 def describe_due_date(due_date, days_left):
@@ -648,11 +694,11 @@ def get_condominio_alert_status(d):
 
     checks = [
         ("Validade do PPCI", d.get("validPpci"), 30),
-        ("Limpeza da caixa d'água", d.get("cxVenc") or d.get("cxData"), 30),
+        ("Limpeza da caixa d'água", d.get("cxData"), 30),
         ("Mandato do síndico", d.get("fimMandato"), 30),
-        ("Recarga de extintor", d.get("recargaVenc") or d.get("recarga"), 30),
-        ("Seguro predial", d.get("segVenc") or d.get("segData"), 30),
-        ("Dedetização", d.get("dedVenc") or d.get("dedData"), 30),
+        ("Recarga de extintor", d.get("recarga"), 30),
+        ("Seguro predial", d.get("segData"), 30),
+        ("Dedetização", d.get("dedData"), 30),
     ]
 
     issues = []
@@ -735,7 +781,7 @@ def collect_form(form):
 
     for key in ("conselho", "conv", "convFis", "reg", "regFis", "ppci", "ppciFis", "ext", "extFis", "brig",
                 "cxFis", "dedFis", "seg", "segFis", "limpFis", "seguranca", "segFis2", "juridico", "jurFis",
-                "mercadinho", "mercFis", "admFis", "gas", "possuiPortaria", "contratoPortariaFis"):
+                "mercadinho", "mercFis", "admFis", "gas"):
         d[key] = valid_choice(d[key], YES_NO)
     d["sindicoTipo"] = valid_choice(d["sindicoTipo"], SINDICO_TIPOS)
     d["gasTipo"] = valid_choice(d["gasTipo"], GAS_TIPOS)
@@ -754,22 +800,12 @@ def collect_form(form):
         if codigo or portao:
             d["controlesPortao"].append({"codigo": codigo, "portao": portao})
 
-    d["qtdFuncionariosPortaria"] = parse_int(d["qtdFuncionariosPortaria"], 0, 100, blank="")
-    d["funcionariosPortaria"] = []
-    qtd_func_portaria = int(d["qtdFuncionariosPortaria"] or 0) if d["possuiPortaria"] == "Sim" and d["tipoPortaria"] == "Física" else 0
-    for i in range(1, qtd_func_portaria + 1):
-        nome = clean(form.get(f"nomeFuncionarioPortaria_{i}", ""), 200)
-        cpf = strip_digits(form.get(f"cpfFuncionarioPortaria_{i}", ""))
-        telefone = clean(form.get(f"telefoneFuncionarioPortaria_{i}", ""), 30)
-        if nome or cpf or telefone:
-            d["funcionariosPortaria"].append({"nome": nome, "cpf": cpf, "telefone": telefone})
-
 
     d["unidades"] = parse_int(d["unidades"], 1, 100000)
     d["qtdBrig"] = parse_int(d["qtdBrig"], 0, 100, blank="")
     d["qtdConselheiros"] = parse_int(d["qtdConselheiros"], 0, 20, blank="")
 
-    for key in ("ataEleicao", "ultAGO", "inicioMandato", "fimMandato", "validPpci", "recarga", "recargaVenc", "brigTreinoVenc", "cxData", "cxVenc", "dedData", "dedVenc", "segData", "segVenc"):
+    for key in ("ataEleicao", "ultAGO", "inicioMandato", "fimMandato", "validPpci", "recarga", "cxData", "dedData", "segData"):
         d[key] = valid_date(d[key])
 
     if d["emailSindico"] and (len(d["emailSindico"]) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", d["emailSindico"])):
@@ -827,20 +863,6 @@ def collect_form(form):
 
     if d["mercadinho"] != "Sim":
         for key in ("nomeMerc", "respMerc", "contatoMerc", "repasseMerc", "periodoMerc", "dataMerc", "mercFis"): d[key] = ""
-
-    if d["tipoLimpeza"] not in {"Empresa terceirizada", "Misto"}:
-        for key in ("empresaLimpeza", "contatoEmpresaLimpeza"): d[key] = ""
-    if d["tipoLimpeza"] not in {"Funcionário próprio", "Misto"}:
-        for key in ("nomeFuncionarioLimpeza", "funcaoLimpeza", "contatoFuncionarioLimpeza"): d[key] = ""
-
-    if d["possuiPortaria"] != "Sim":
-        for key in ("tipoPortaria", "empresaPortariaFisica", "qtdFuncionariosPortaria", "empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota", "contratoPortariaFis"): d[key] = ""
-        d["funcionariosPortaria"] = []
-    elif d["tipoPortaria"] == "Física":
-        for key in ("empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota"): d[key] = ""
-    elif d["tipoPortaria"] == "Remota":
-        for key in ("empresaPortariaFisica", "qtdFuncionariosPortaria"): d[key] = ""
-        d["funcionariosPortaria"] = []
 
     if d["gas"] != "Sim":
         d["gasTipo"] = d["codCad"] = d["empresaGas"] = d["codigoGasOutra"] = ""
@@ -916,7 +938,7 @@ def current_user():
     if not user_id:
         return None
     with conn() as c:
-        row = c.execute("SELECT id, username, email, role, password_hash FROM usuarios WHERE id=?", (user_id,)).fetchone()
+        row = c.execute("SELECT id, username, role, password_hash FROM usuarios WHERE id=?", (user_id,)).fetchone()
     return dict(row) if row else None
 
 
@@ -950,13 +972,10 @@ def log_audit(action, details="", username=None):
         c.commit()
 
 
-def create_user(username, email, password, role="normal", password_confirm=None):
+def create_user(username, password, role="normal", password_confirm=None):
     username = clean(username).strip()
-    email = clean(email).strip().lower()
     if not username:
         raise ValueError("Informe o nome de usuário.")
-    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
-        raise ValueError("Informe um e-mail válido.")
     if password is None or len(str(password)) < 4:
         raise ValueError("A senha deve ter pelo menos 4 caracteres.")
     if password_confirm is not None and str(password) != str(password_confirm):
@@ -965,35 +984,30 @@ def create_user(username, email, password, role="normal", password_confirm=None)
     if role not in {"admin", "normal", "financeiro", "master"}:
         raise ValueError("Perfil inválido.")
     with conn() as c:
-        existing = c.execute("SELECT id FROM usuarios WHERE username = ? OR lower(email) = ?", (username, email)).fetchone()
+        existing = c.execute("SELECT id FROM usuarios WHERE username = ?", (username,)).fetchone()
         if existing is not None:
-            raise ValueError("Usuário ou e-mail já cadastrado.")
+            raise ValueError("Usuário já existe.")
         c.execute(
-            "INSERT INTO usuarios(username, email, password_hash, role) VALUES(?,?,?,?,?)",
-            (username, email, generate_password_hash(str(password)), role),
+            "INSERT INTO usuarios(username, password_hash, role) VALUES(?,?,?)",
+            (username, generate_password_hash(str(password)), role),
         )
         c.commit()
     return username
 
 
-def update_user_profile(user_id, username, email, role=None, password=None, password_confirm=None):
+def update_user_profile(user_id, username, password=None, password_confirm=None):
     username = clean(username).strip()
-    email = clean(email).strip().lower()
     if not username:
         raise ValueError("Informe o nome de usuário.")
-    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
-        raise ValueError("Informe um e-mail válido.")
-    if role is not None and clean(role).lower() not in {"admin", "normal", "financeiro", "master"}:
-        raise ValueError("Perfil inválido.")
 
     with conn() as c:
-        current = c.execute("SELECT id, username, email, password_hash, role FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+        current = c.execute("SELECT id, username, password_hash, role FROM usuarios WHERE id = ?", (user_id,)).fetchone()
         if current is None:
             raise ValueError("Usuário não encontrado.")
 
         existing = c.execute(
-            "SELECT id FROM usuarios WHERE (username = ? OR lower(email) = ?) AND id != ?",
-            (username, email, user_id),
+            "SELECT id FROM usuarios WHERE username = ? AND id != ?",
+            (username, user_id),
         ).fetchone()
         if existing is not None:
             raise ValueError("Usuário já existe.")
@@ -1004,22 +1018,22 @@ def update_user_profile(user_id, username, email, role=None, password=None, pass
             if password_confirm is not None and str(password) != str(password_confirm):
                 raise ValueError("As senhas não conferem.")
             c.execute(
-                "UPDATE usuarios SET username = ?, email = ?, role = COALESCE(?, role), password_hash = ? WHERE id = ?",
-                (username, email, role, generate_password_hash(str(password)), user_id),
+                "UPDATE usuarios SET username = ?, password_hash = ? WHERE id = ?",
+                (username, generate_password_hash(str(password)), user_id),
             )
         else:
-            c.execute("UPDATE usuarios SET username = ?, email = ?, role = COALESCE(?, role) WHERE id = ?", (username, email, role, user_id))
+            c.execute("UPDATE usuarios SET username = ? WHERE id = ?", (username, user_id))
         c.commit()
 
     return username
 
 
-def authenticate_user(login_value, password):
-    login_value = clean(login_value).strip().lower()
-    if not login_value:
+def authenticate_user(username, password):
+    username = clean(username).strip()
+    if not username:
         return None
     with conn() as c:
-        row = c.execute("SELECT * FROM usuarios WHERE lower(username) = ? OR lower(email) = ?", (login_value, login_value)).fetchone()
+        row = c.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
     if row and check_password_hash(row["password_hash"], password or ""):
         return dict(row)
     return None
@@ -1057,7 +1071,7 @@ def finance_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         user = current_user()
-        if not user or user.get("role") not in {"admin", "financeiro", "master"}:
+        if not user or user.get("role") not in {"admin", "financeiro", "master", "normal"}:
             flash("Este perfil não tem acesso financeiro.", "error")
             return redirect(url_for("index"))
         return view(*args, **kwargs)
@@ -1126,7 +1140,7 @@ def usuarios():
         mes = datetime.now().strftime("%Y-%m")
 
     with conn() as c:
-        rows = c.execute("SELECT id, username, email, role, created_at FROM usuarios ORDER BY username COLLATE NOCASE").fetchall()
+        rows = c.execute("SELECT id, username, role, created_at FROM usuarios ORDER BY username COLLATE NOCASE").fetchall()
         audit_rows = c.execute(
             "SELECT username, action, details, created_at FROM auditoria WHERE strftime('%Y-%m', created_at) = ? ORDER BY id DESC LIMIT 20",
             (mes,),
@@ -1261,11 +1275,10 @@ def exportar_auditoria_pdf():
 def criar_usuario():
     try:
         username = request.form.get("username", "")
-        email = request.form.get("email", "")
         password = request.form.get("password", "")
         password_confirm = request.form.get("password_confirm", "")
         role = request.form.get("role", "normal")
-        create_user(username, email, password, role, password_confirm)
+        create_user(username, password, role, password_confirm)
         log_audit("criar_usuario", f"Usuário {username} criado por {session.get('username')}", session.get('username'))
         flash(f"Usuário {username} criado com sucesso.", "ok")
     except ValueError as exc:
@@ -1284,13 +1297,11 @@ def editar_usuario(user_id):
         return redirect(url_for("usuarios"))
 
     username = request.form.get("username", "")
-    email = request.form.get("email", "")
-    role = request.form.get("role", "normal")
     password = request.form.get("password", "")
     password_confirm = request.form.get("password_confirm", "")
 
     try:
-        new_username = update_user_profile(user_id, username, email, role=role, password=password if str(password).strip() else None, password_confirm=password_confirm)
+        new_username = update_user_profile(user_id, username, password=password if str(password).strip() else None, password_confirm=password_confirm)
     except ValueError as exc:
         flash(str(exc), "error")
         return redirect(url_for("usuarios"))
@@ -1353,9 +1364,9 @@ def excluir_usuario(user_id):
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        login_value = request.form.get("login") or request.form.get("username", "")
+        username = request.form.get("login") or request.form.get("username", "")
         password = request.form.get("password", "")
-        user = authenticate_user(login_value, password)
+        user = authenticate_user(username, password)
         if not user:
             flash("Credenciais inválidas.", "error")
             return render_template("login.html", next=request.args.get("next") or url_for("index"))
@@ -1560,17 +1571,19 @@ def financeiro():
             "status": status,
         })
 
-    summary = get_finance_summary(mes, request.args.get("data_inicio"), request.args.get("data_fim"))
+    scope = get_finance_scope()
+    summary = get_finance_summary(mes, request.args.get("data_inicio"), request.args.get("data_fim"), scope)
     receita_data = "COALESCE(NULLIF(r.data_pagamento, ''), r.mes_referencia || '-01')"
+    receita_condition, despesa_condition, scope_params = finance_scope_conditions(scope)
     with conn() as c:
         condominios = c.execute("SELECT id, nome FROM condominios ORDER BY nome COLLATE NOCASE").fetchall()
         receitas_todas = c.execute(
-            f"SELECT r.*, c.nome AS condominio FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id WHERE {receita_data} BETWEEN ? AND ? ORDER BY {receita_data} DESC, r.id DESC",
-            (summary["data_inicio"], summary["data_fim"]),
+            f"SELECT r.*, c.nome AS condominio FROM financeiro_receitas r LEFT JOIN condominios c ON c.id = r.condominio_id WHERE {receita_condition} AND {receita_data} BETWEEN ? AND ? ORDER BY {receita_data} DESC, r.id DESC",
+            (*scope_params, summary["data_inicio"], summary["data_fim"]),
         ).fetchall()
         despesas_todas = c.execute(
-            "SELECT * FROM financeiro_despesas WHERE vencimento BETWEEN ? AND ? ORDER BY vencimento DESC, id DESC",
-            (summary["data_inicio"], summary["data_fim"]),
+            f"SELECT * FROM financeiro_despesas d WHERE {despesa_condition} AND d.vencimento BETWEEN ? AND ? ORDER BY d.vencimento DESC, d.id DESC",
+            (*scope_params, summary["data_inicio"], summary["data_fim"]),
         ).fetchall()
 
     categorias = get_finance_categorias()
@@ -1613,6 +1626,9 @@ def financeiro():
         despesas_todas=[dict(row) for row in despesas_todas],
         editar_receita=editar_receita,
         editar_despesa=editar_despesa,
+        scope=scope,
+        scope_tipo=scope["tipo"],
+        scope_condominio_id=scope["condominio_id"],
     )
 
 
@@ -1690,6 +1706,8 @@ def resumo_categoria():
 @login_required
 @finance_required
 def salvar_receita():
+    scope = get_finance_scope()
+    condominio_id_scope = scope["condominio_id"]
     grupo = clean(request.form.get("grupo", "ALT"), 50) or "ALT"
     condominio_id = request.form.get("condominio_id", "").strip()
     categoria = clean(request.form.get("categoria", ""), 100)
@@ -1702,6 +1720,10 @@ def salvar_receita():
     observacao = clean(request.form.get("observacao", ""), 500)
 
     try:
+        if (current_user() or {}).get("role") == "normal":
+            condominio_id = str(condominio_id_scope or "")
+        elif condominio_id_scope is not None and not condominio_id:
+            condominio_id = str(condominio_id_scope)
         value = parse_monetary(valor)
         datetime.strptime(mes_referencia, "%Y-%m")
         if data_pagamento:
@@ -1717,7 +1739,7 @@ def salvar_receita():
             grupo = "ALT"
     except (ValueError, TypeError):
         flash("Revise a receita informada: valor, mês e dados do condomínio são obrigatórios.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia))
+        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
     with conn() as c:
         c.execute(
@@ -1729,13 +1751,15 @@ def salvar_receita():
     destino = "ALT" if condominio_id is None else str(condominio_id)
     log_audit("financeiro_receita", f"Receita de R$ {value:,.2f} cadastrada para {destino} por {session.get('username')}", session.get('username'))
     flash("Receita cadastrada com sucesso.", "ok")
-    return redirect(url_for("financeiro", mes=mes_referencia))
+    return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
 
 @app.post("/financeiro/receitas/<int:receita_id>/editar")
 @login_required
 @finance_required
 def editar_receita(receita_id):
+    scope = get_finance_scope()
+    condominio_id_scope = scope["condominio_id"]
     grupo = clean(request.form.get("grupo", "ALT"), 50) or "ALT"
     condominio_id = request.form.get("condominio_id", "").strip()
     categoria = clean(request.form.get("categoria", ""), 100)
@@ -1748,6 +1772,10 @@ def editar_receita(receita_id):
     observacao = clean(request.form.get("observacao", ""), 500)
 
     try:
+        if (current_user() or {}).get("role") == "normal":
+            condominio_id = str(condominio_id_scope or "")
+        elif condominio_id_scope is not None and not condominio_id:
+            condominio_id = str(condominio_id_scope)
         value = parse_monetary(valor)
         datetime.strptime(mes_referencia, "%Y-%m")
         if data_pagamento:
@@ -1763,7 +1791,7 @@ def editar_receita(receita_id):
             grupo = "ALT"
     except (ValueError, TypeError):
         flash("Revise a receita informada: valor, mês e dados do condomínio são obrigatórios.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia))
+        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
     with conn() as c:
         anterior = c.execute(
@@ -1772,7 +1800,7 @@ def editar_receita(receita_id):
         ).fetchone()
         if anterior is None:
             flash("Receita não encontrada.", "error")
-            return redirect(url_for("financeiro", mes=mes_referencia))
+            return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
         c.execute(
             """UPDATE financeiro_receitas
@@ -1792,7 +1820,7 @@ def editar_receita(receita_id):
         session.get("username"),
     )
     flash("Receita atualizada com sucesso.", "ok")
-    return redirect(url_for("financeiro", mes=mes_referencia))
+    return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
 
 @app.post("/financeiro/receitas/<int:receita_id>/excluir")
@@ -1815,6 +1843,8 @@ def excluir_receita(receita_id):
 @login_required
 @finance_required
 def salvar_despesa():
+    scope = get_finance_scope()
+    condominio_id = scope["condominio_id"]
     nome = clean(request.form.get("nome", ""), 200)
     categoria = clean(request.form.get("categoria", ""), 100)
     fornecedor = clean(request.form.get("fornecedor", ""), 200)
@@ -1829,7 +1859,7 @@ def salvar_despesa():
 
     if not nome or not vencimento:
         flash("Informe o nome da despesa e a data de vencimento.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia))
+        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
     try:
         value = parse_monetary(valor)
@@ -1838,14 +1868,14 @@ def salvar_despesa():
         parcelas = max(1, min(int(parcelas), 24))
     except ValueError:
         flash("Revise os dados da despesa: valor, vencimento e mês obrigatórios.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia))
+        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
     items = _create_expense_installments(nome, value, vencimento, parcelas, mes_referencia, observacao)
     with conn() as c:
         c.executemany(
-            "INSERT INTO financeiro_despesas(nome, categoria, fornecedor, valor, vencimento, mes_referencia, parcelas, metodo_pagamento, numero_documento, status, observacao, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO financeiro_despesas(condominio_id, nome, categoria, fornecedor, valor, vencimento, mes_referencia, parcelas, metodo_pagamento, numero_documento, status, observacao, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
-                (item["nome"], categoria or "Geral", fornecedor or "Fornecedor", item["valor"], item["vencimento"], item["mes_referencia"], item["parcelas"], metodo_pagamento or "Transferência", numero_documento or "", status, item["observacao"], datetime.now().isoformat(timespec="seconds"))
+                (condominio_id, item["nome"], categoria or "Geral", fornecedor or "Fornecedor", item["valor"], item["vencimento"], item["mes_referencia"], item["parcelas"], metodo_pagamento or "Transferência", numero_documento or "", status, item["observacao"], datetime.now().isoformat(timespec="seconds"))
                 for item in items
             ],
         )
@@ -1853,13 +1883,15 @@ def salvar_despesa():
 
     log_audit("financeiro_despesa", f"Despesa {nome} cadastrada em {parcelas} parcela(s) por {session.get('username')}", session.get('username'))
     flash(f"Despesa cadastrada com sucesso em {len(items)} parcela(s).", "ok")
-    return redirect(url_for("financeiro", mes=mes_referencia))
+    return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
 
 @app.post("/financeiro/despesas/<int:despesa_id>/editar")
 @login_required
 @finance_required
 def editar_despesa(despesa_id):
+    scope = get_finance_scope()
+    condominio_id = scope["condominio_id"]
     nome = clean(request.form.get("nome", ""), 200)
     categoria = clean(request.form.get("categoria", ""), 100)
     fornecedor = clean(request.form.get("fornecedor", ""), 200)
@@ -1874,7 +1906,7 @@ def editar_despesa(despesa_id):
 
     if not nome or not vencimento:
         flash("Informe o nome da despesa e a data de vencimento.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia))
+        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
     try:
         value = parse_monetary(valor)
@@ -1883,7 +1915,7 @@ def editar_despesa(despesa_id):
         parcelas = max(1, min(int(parcelas), 24))
     except (ValueError, TypeError):
         flash("Revise os dados da despesa: valor, vencimento e mês obrigatórios.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia))
+        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
     with conn() as c:
         anterior = c.execute(
@@ -1892,14 +1924,14 @@ def editar_despesa(despesa_id):
         ).fetchone()
         if anterior is None:
             flash("Despesa não encontrada.", "error")
-            return redirect(url_for("financeiro", mes=mes_referencia))
+            return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
         c.execute(
             """UPDATE financeiro_despesas
-               SET nome=?, categoria=?, fornecedor=?, valor=?, vencimento=?, mes_referencia=?,
+               SET condominio_id=?, nome=?, categoria=?, fornecedor=?, valor=?, vencimento=?, mes_referencia=?,
                    parcelas=?, metodo_pagamento=?, numero_documento=?, status=?, observacao=?
                WHERE id=?""",
-            (nome, categoria or "Geral", fornecedor or "Fornecedor", value,
+            (condominio_id, nome, categoria or "Geral", fornecedor or "Fornecedor", value,
              vencimento, mes_referencia, parcelas,
              metodo_pagamento or "Transferência", numero_documento or "",
              status, observacao, despesa_id),
@@ -1912,7 +1944,7 @@ def editar_despesa(despesa_id):
         session.get("username"),
     )
     flash("Despesa atualizada com sucesso.", "ok")
-    return redirect(url_for("financeiro", mes=mes_referencia))
+    return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
 
 
 @app.post("/financeiro/despesas/<int:despesa_id>/excluir")
@@ -1941,7 +1973,8 @@ def relatorio_financeiro():
     except ValueError:
         mes = datetime.now().strftime("%Y-%m")
 
-    summary = get_finance_summary(mes, request.args.get("data_inicio"), request.args.get("data_fim"))
+    scope = get_finance_scope()
+    summary = get_finance_summary(mes, request.args.get("data_inicio"), request.args.get("data_fim"), scope)
     now = datetime.now()
     folder = PDFS / "financeiro" / mes
     folder.mkdir(parents=True, exist_ok=True)
@@ -1950,7 +1983,7 @@ def relatorio_financeiro():
 
     story = [
         Paragraph("ALT GESTÃO DE CONDOMÍNIOS", styles["TitleALT"]),
-        Paragraph("RELATÓRIO FINANCEIRO DA ALT", styles["SubALT"]),
+        Paragraph(f"RELATÓRIO FINANCEIRO — {scope['label']}", styles["SubALT"]),
         Paragraph(f"<b>Período:</b> {summary['periodo_label']}", styles["Value"]),
         Paragraph(f"<b>Receita:</b> R$ {summary['receita']:.2f} &nbsp;&nbsp; <b>Despesa:</b> R$ {summary['despesa']:.2f} &nbsp;&nbsp; <b>Saldo:</b> R$ {summary['saldo']:.2f}", styles["Value"]),
         Spacer(1, 12),
@@ -2643,11 +2676,9 @@ def pdf(cid):
         ("PPCI impresso", yn(d.get("ppciFis"))),
         ("Extintores em situação regular", yn(d.get("ext"))),
         ("Data da última recarga", format_date(d.get("recarga"))),
-        ("Próxima recarga", format_date(d.get("recargaVenc"))),
         ("Documento dos extintores impresso", yn(d.get("extFis"))),
         ("Possui brigadistas", yn(d.get("brig"))),
         ("Quantidade de brigadistas", d.get("qtdBrig")),
-        ("Vencimento do treinamento", format_date(d.get("brigTreinoVenc"))),
     ])
     for i, item in enumerate(d.get("brigadistas", []), 1):
         add_section(story, f"BRIGADISTA {i}", [
@@ -2657,10 +2688,8 @@ def pdf(cid):
 
     add_section(story, "7. LIMPEZA DA CAIXA D'ÁGUA E DEDETIZAÇÃO", [
         ("Data da última limpeza da caixa d'água", format_date(d.get("cxData"))),
-        ("Próxima limpeza", format_date(d.get("cxVenc"))),
         ("Comprovante da limpeza impresso", yn(d.get("cxFis"))),
         ("Data da última dedetização", format_date(d.get("dedData"))),
-        ("Próxima dedetização", format_date(d.get("dedVenc"))),
         ("Comprovante da dedetização impresso", yn(d.get("dedFis"))),
     ])
 
@@ -2670,7 +2699,6 @@ def pdf(cid):
         ("Corretor responsável", d.get("corretorResponsavelSeg")),
         ("Contato do corretor", d.get("contatoCorretorSeg")),
         ("Data da última contratação/renovação", format_date(d.get("segData"))),
-        ("Vencimento do seguro", format_date(d.get("segVenc"))),
         ("Apólice impressa na pasta física", yn(d.get("segFis"))),
     ])
 
@@ -2682,39 +2710,21 @@ def pdf(cid):
         ("Código de cadastramento", d.get("codCad")),
         ("Empresa de gás", d.get("empresaGas")),
         ("Código para cadastro", d.get("codigoGasOutra")),
-        ("Nome do leiturista", d.get("leituristaGas")),
-        ("Contato do leiturista", d.get("contatoLeituristaGas")),
     ])
 
     add_section(story, "10. LIMPEZA DO CONDOMÍNIO", [
-        ("Tipo de limpeza", d.get("tipoLimpeza")),
-        ("Responsável pela limpeza", d.get("quemLimpeza")),
+        ("Quem realiza a limpeza", d.get("quemLimpeza")),
         ("Empresa", d.get("empresaLimpeza")),
-        ("Contato da empresa", d.get("contatoEmpresaLimpeza")),
-        ("Nome do funcionário", d.get("nomeFuncionarioLimpeza")),
-        ("Função", d.get("funcaoLimpeza")),
-        ("Contato do funcionário", d.get("contatoFuncionarioLimpeza")),
         ("Frequência", d.get("freqLimpeza")),
         ("Carga horária", d.get("cargaLimpeza")),
-        ("Horário de trabalho", d.get("horarioLimpeza")),
         ("Contrato de limpeza impresso", yn(d.get("limpFis"))),
     ])
 
-    portaria_rows = [
-        ("Possui portaria", yn(d.get("possuiPortaria"))),
-        ("Tipo de portaria", d.get("tipoPortaria")),
-        ("Empresa da portaria física", d.get("empresaPortariaFisica")),
-        ("Quantidade de funcionários", d.get("qtdFuncionariosPortaria")),
-        ("Empresa da portaria remota", d.get("empresaPortariaRemota")),
-        ("Contato da portaria remota", d.get("contatoPortariaRemota")),
-        ("Responsável pela portaria remota", d.get("responsavelPortariaRemota")),
-        ("E-mail da portaria remota", d.get("emailPortariaRemota")),
-        ("Contrato de portaria impresso", yn(d.get("contratoPortariaFis"))),
-    ]
-    for i, item in enumerate(d.get("funcionariosPortaria", []), 1):
-        portaria_rows += [(f"Funcionário {i} — nome", item.get("nome")), (f"Funcionário {i} — CPF", item.get("cpf")), (f"Funcionário {i} — telefone", item.get("telefone"))]
-    portaria_rows += [("Segurança adicional", yn(d.get("seguranca"))), ("Empresa de segurança", d.get("empresaSeg")), ("Contrato de segurança impresso", yn(d.get("segFis2")))]
-    add_section(story, "11. PORTARIA E SEGURANÇA", portaria_rows)
+    add_section(story, "11. SEGURANÇA / PORTARIA", [
+        ("Possui segurança/portaria", yn(d.get("seguranca"))),
+        ("Empresa responsável", d.get("empresaSeg")),
+        ("Contrato impresso", yn(d.get("segFis2"))),
+    ])
 
     add_section(story, "12. JURÍDICO / COBRANÇA", [
         ("Possui advogado/escritório", yn(d.get("juridico"))),
@@ -2849,139 +2859,6 @@ def demandas_painel():
         total_proximas=proximas,
         total_em_dia=em_dia,
         today=today.isoformat(),
-    )
-
-
-@app.get("/demandas/relatorio")
-@login_required
-def relatorio_demandas():
-    """Gera um relatório PDF com todas as demandas cadastradas."""
-    today = datetime.now().date()
-    with conn() as c:
-        rows = c.execute("""
-            SELECT d.*, c.nome AS condominio_nome
-            FROM demandas d
-            LEFT JOIN condominios c ON c.id = d.condominio_id
-            ORDER BY
-                CASE WHEN d.status = 'Concluída' THEN 1 ELSE 0 END,
-                d.data_vencimento ASC,
-                d.id DESC
-        """).fetchall()
-
-    def fmt_date(value):
-        try:
-            return datetime.strptime(str(value), "%Y-%m-%d").strftime("%d/%m/%Y")
-        except (TypeError, ValueError):
-            return str(value or "—")
-
-    def status_prazo(row):
-        if row["status"] == "Concluída":
-            return "Concluída"
-        try:
-            days = (datetime.strptime(row["data_vencimento"], "%Y-%m-%d").date() - today).days
-        except (TypeError, ValueError):
-            return "Sem prazo válido"
-        if days < 0:
-            return f"Vencida há {abs(days)} dia(s)"
-        if days == 0:
-            return "Vence hoje"
-        return f"Vence em {days} dia(s)"
-
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=28,
-        leftMargin=28,
-        topMargin=32,
-        bottomMargin=32,
-        title="Relatório de Demandas — ALT Gestão de Condomínios",
-        author="ALT Gestão de Condomínios",
-    )
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        "AltReportTitle", parent=styles["Title"], fontName="Helvetica-Bold",
-        fontSize=18, leading=22, textColor=colors.HexColor("#4F2C68"),
-        spaceAfter=6,
-    )
-    subtitle_style = ParagraphStyle(
-        "AltReportSubtitle", parent=styles["Normal"], fontSize=9,
-        textColor=colors.HexColor("#64748B"), spaceAfter=14,
-    )
-    cell_style = ParagraphStyle(
-        "AltReportCell", parent=styles["Normal"], fontSize=7.5,
-        leading=9, textColor=colors.HexColor("#1E293B"),
-    )
-    header_style = ParagraphStyle(
-        "AltReportHeader", parent=cell_style, fontName="Helvetica-Bold",
-        textColor=colors.white,
-    )
-
-    total = len(rows)
-    concluidas = sum(1 for r in rows if r["status"] == "Concluída")
-    pendentes = total - concluidas
-    vencidas = sum(
-        1 for r in rows
-        if r["status"] != "Concluída"
-        and parse_date_value(r["data_vencimento"])
-        and parse_date_value(r["data_vencimento"]) < today
-    )
-
-    story = [
-        Paragraph("ALT Gestão de Condomínios", title_style),
-        Paragraph(
-            f"Relatório geral de demandas · Emitido em {today.strftime('%d/%m/%Y')} · "
-            f"Total: {total} · Pendentes: {pendentes} · Concluídas: {concluidas} · Vencidas: {vencidas}",
-            subtitle_style,
-        ),
-    ]
-
-    data = [[
-        Paragraph("Demanda", header_style),
-        Paragraph("Condomínio", header_style),
-        Paragraph("Vencimento", header_style),
-        Paragraph("Prazo", header_style),
-        Paragraph("Prioridade", header_style),
-        Paragraph("Categoria", header_style),
-        Paragraph("Responsável", header_style),
-        Paragraph("Status", header_style),
-    ]]
-    for row in rows:
-        data.append([
-            Paragraph(html.escape(str(row["titulo"] or "—")), cell_style),
-            Paragraph(html.escape(str(row["condominio_nome"] or "—")), cell_style),
-            Paragraph(fmt_date(row["data_vencimento"]), cell_style),
-            Paragraph(html.escape(status_prazo(row)), cell_style),
-            Paragraph(html.escape(str(row["prioridade"] or "—")), cell_style),
-            Paragraph(html.escape(str(row["categoria"] or "—")), cell_style),
-            Paragraph(html.escape(str(row["responsavel"] or "Não informado")), cell_style),
-            Paragraph(html.escape(str(row["status"] or "Pendente")), cell_style),
-        ])
-
-    if len(data) == 1:
-        data.append([Paragraph("Nenhuma demanda cadastrada.", cell_style)] + [""] * 7)
-
-    table = Table(data, colWidths=[78, 94, 53, 66, 48, 58, 62, 53], repeatRows=1)
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4F2C68")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8D1E2")),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 5),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F5FB")]),
-    ]))
-    story.append(table)
-    doc.build(story)
-    buffer.seek(0)
-    log_audit("relatorio_demandas", f"Relatório de demandas gerado por {session.get('username')}", session.get('username'))
-    return send_file(
-        buffer,
-        as_attachment=(request.args.get("visualizar") != "1"),
-        download_name=f"ALT-relatorio-demandas-{today.isoformat()}.pdf",
-        mimetype="application/pdf",
     )
 
 
