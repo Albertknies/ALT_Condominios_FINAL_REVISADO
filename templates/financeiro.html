@@ -258,7 +258,16 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
                 <td>R$ {{ '%.2f'|format(item.valor) }}</td>
                 <td>{{ item.status or 'Recebido' }}</td>
                 <td>
-                  <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_receita=item.id) }}">Editar</a>
+                  <div class="header-actions compact">
+                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_receita=item.id) }}">Editar</a>
+                    <form method="post"
+                          action="{{ url_for('excluir_receita', receita_id=item.id, mes=mes) }}"
+                          onsubmit="return confirm('Tem certeza que deseja excluir esta receita?');"
+                          style="display:inline;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn danger small">Excluir</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% endfor %}
@@ -271,7 +280,16 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
                 <td>R$ {{ '%.2f'|format(item.valor) }}</td>
                 <td>{{ item.status or 'Pendente' }}</td>
                 <td>
-                  <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_despesa=item.id) }}">Editar</a>
+                  <div class="header-actions compact">
+                    <a class="btn ghost small" href="{{ url_for('financeiro', mes=mes, editar_despesa=item.id) }}">Editar</a>
+                    <form method="post"
+                          action="{{ url_for('excluir_despesa', despesa_id=item.id, mes=mes) }}"
+                          onsubmit="return confirm('Tem certeza que deseja excluir esta despesa?');"
+                          style="display:inline;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn danger small">Excluir</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% else %}
