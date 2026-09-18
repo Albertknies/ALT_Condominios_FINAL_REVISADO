@@ -190,6 +190,7 @@ def init_db():
             c.execute("""CREATE TABLE IF NOT EXISTS usuarios (
                 id BIGSERIAL PRIMARY KEY,
                 username TEXT NOT NULL UNIQUE,
+                email TEXT,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'normal',
                 created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP::text)
@@ -285,6 +286,7 @@ def init_db():
         c.execute("""CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
+            email TEXT,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'normal',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -418,7 +420,22 @@ def ensure_finance_schema():
         c.commit()
 
 
+def ensure_user_email_column():
+    """Adiciona a coluna de e-mail em bancos já existentes, sem apagar dados."""
+    with conn() as c:
+        try:
+            c.execute("ALTER TABLE usuarios ADD COLUMN email TEXT")
+            c.commit()
+        except Exception:
+            # A coluna já existe ou o banco não permite a alteração neste momento.
+            try:
+                c.rollback()
+            except Exception:
+                pass
+
+
 init_db()
+ensure_user_email_column()
 
 
 def clean(v, limit=5000):
@@ -899,7 +916,7 @@ def current_user():
     if not user_id:
         return None
     with conn() as c:
-        row = c.execute("SELECT id, username, role, password_hash FROM usuarios WHERE id=?", (user_id,)).fetchone()
+        row = c.execute("SELECT id, username, email, role, password_hash FROM usuarios WHERE id=?", (user_id,)).fetchone()
     return dict(row) if row else None
 
 
@@ -933,10 +950,13 @@ def log_audit(action, details="", username=None):
         c.commit()
 
 
-def create_user(username, password, role="normal", password_confirm=None):
+def create_user(username, email, password, role="normal", password_confirm=None):
     username = clean(username).strip()
+    email = clean(email).strip().lower()
     if not username:
         raise ValueError("Informe o nome de usuário.")
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        raise ValueError("Informe um e-mail válido.")
     if password is None or len(str(password)) < 4:
         raise ValueError("A senha deve ter pelo menos 4 caracteres.")
     if password_confirm is not None and str(password) != str(password_confirm):
@@ -945,30 +965,35 @@ def create_user(username, password, role="normal", password_confirm=None):
     if role not in {"admin", "normal", "financeiro", "master"}:
         raise ValueError("Perfil inválido.")
     with conn() as c:
-        existing = c.execute("SELECT id FROM usuarios WHERE username = ?", (username,)).fetchone()
+        existing = c.execute("SELECT id FROM usuarios WHERE username = ? OR lower(email) = ?", (username, email)).fetchone()
         if existing is not None:
-            raise ValueError("Usuário já existe.")
+            raise ValueError("Usuário ou e-mail já cadastrado.")
         c.execute(
-            "INSERT INTO usuarios(username, password_hash, role) VALUES(?,?,?)",
-            (username, generate_password_hash(str(password)), role),
+            "INSERT INTO usuarios(username, email, password_hash, role) VALUES(?,?,?,?,?)",
+            (username, email, generate_password_hash(str(password)), role),
         )
         c.commit()
     return username
 
 
-def update_user_profile(user_id, username, password=None, password_confirm=None):
+def update_user_profile(user_id, username, email, role=None, password=None, password_confirm=None):
     username = clean(username).strip()
+    email = clean(email).strip().lower()
     if not username:
         raise ValueError("Informe o nome de usuário.")
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        raise ValueError("Informe um e-mail válido.")
+    if role is not None and clean(role).lower() not in {"admin", "normal", "financeiro", "master"}:
+        raise ValueError("Perfil inválido.")
 
     with conn() as c:
-        current = c.execute("SELECT id, username, password_hash, role FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+        current = c.execute("SELECT id, username, email, password_hash, role FROM usuarios WHERE id = ?", (user_id,)).fetchone()
         if current is None:
             raise ValueError("Usuário não encontrado.")
 
         existing = c.execute(
-            "SELECT id FROM usuarios WHERE username = ? AND id != ?",
-            (username, user_id),
+            "SELECT id FROM usuarios WHERE (username = ? OR lower(email) = ?) AND id != ?",
+            (username, email, user_id),
         ).fetchone()
         if existing is not None:
             raise ValueError("Usuário já existe.")
@@ -979,22 +1004,22 @@ def update_user_profile(user_id, username, password=None, password_confirm=None)
             if password_confirm is not None and str(password) != str(password_confirm):
                 raise ValueError("As senhas não conferem.")
             c.execute(
-                "UPDATE usuarios SET username = ?, password_hash = ? WHERE id = ?",
-                (username, generate_password_hash(str(password)), user_id),
+                "UPDATE usuarios SET username = ?, email = ?, role = COALESCE(?, role), password_hash = ? WHERE id = ?",
+                (username, email, role, generate_password_hash(str(password)), user_id),
             )
         else:
-            c.execute("UPDATE usuarios SET username = ? WHERE id = ?", (username, user_id))
+            c.execute("UPDATE usuarios SET username = ?, email = ?, role = COALESCE(?, role) WHERE id = ?", (username, email, role, user_id))
         c.commit()
 
     return username
 
 
-def authenticate_user(username, password):
-    username = clean(username).strip()
-    if not username:
+def authenticate_user(login_value, password):
+    login_value = clean(login_value).strip().lower()
+    if not login_value:
         return None
     with conn() as c:
-        row = c.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
+        row = c.execute("SELECT * FROM usuarios WHERE lower(username) = ? OR lower(email) = ?", (login_value, login_value)).fetchone()
     if row and check_password_hash(row["password_hash"], password or ""):
         return dict(row)
     return None
@@ -1101,7 +1126,7 @@ def usuarios():
         mes = datetime.now().strftime("%Y-%m")
 
     with conn() as c:
-        rows = c.execute("SELECT id, username, role, created_at FROM usuarios ORDER BY username COLLATE NOCASE").fetchall()
+        rows = c.execute("SELECT id, username, email, role, created_at FROM usuarios ORDER BY username COLLATE NOCASE").fetchall()
         audit_rows = c.execute(
             "SELECT username, action, details, created_at FROM auditoria WHERE strftime('%Y-%m', created_at) = ? ORDER BY id DESC LIMIT 20",
             (mes,),
@@ -1236,10 +1261,11 @@ def exportar_auditoria_pdf():
 def criar_usuario():
     try:
         username = request.form.get("username", "")
+        email = request.form.get("email", "")
         password = request.form.get("password", "")
         password_confirm = request.form.get("password_confirm", "")
         role = request.form.get("role", "normal")
-        create_user(username, password, role, password_confirm)
+        create_user(username, email, password, role, password_confirm)
         log_audit("criar_usuario", f"Usuário {username} criado por {session.get('username')}", session.get('username'))
         flash(f"Usuário {username} criado com sucesso.", "ok")
     except ValueError as exc:
@@ -1258,11 +1284,13 @@ def editar_usuario(user_id):
         return redirect(url_for("usuarios"))
 
     username = request.form.get("username", "")
+    email = request.form.get("email", "")
+    role = request.form.get("role", "normal")
     password = request.form.get("password", "")
     password_confirm = request.form.get("password_confirm", "")
 
     try:
-        new_username = update_user_profile(user_id, username, password=password if str(password).strip() else None, password_confirm=password_confirm)
+        new_username = update_user_profile(user_id, username, email, role=role, password=password if str(password).strip() else None, password_confirm=password_confirm)
     except ValueError as exc:
         flash(str(exc), "error")
         return redirect(url_for("usuarios"))
@@ -1325,9 +1353,9 @@ def excluir_usuario(user_id):
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username", "")
+        login_value = request.form.get("login") or request.form.get("username", "")
         password = request.form.get("password", "")
-        user = authenticate_user(username, password)
+        user = authenticate_user(login_value, password)
         if not user:
             flash("Credenciais inválidas.", "error")
             return render_template("login.html", next=request.args.get("next") or url_for("index"))

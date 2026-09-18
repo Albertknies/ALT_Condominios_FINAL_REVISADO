@@ -62,6 +62,25 @@
     .password-wrap.compact { width:210px; }
     .empty { text-align:center; color:var(--muted); padding:28px 20px; margin:0; }
     @media (max-width:900px) { .top-navbar { flex-direction:column; align-items:flex-start; padding:14px 18px; } .nav-menu { justify-content:flex-start; } main { padding:0 12px; margin-top:18px; } .page-head { flex-direction:column; align-items:flex-start; } .user-row { flex-direction:column; } .row-actions { justify-content:flex-start; width:100%; } .password-inline-stack, .inline-form { width:100%; } .compact-field, .password-wrap.compact { width:100%; } }
+
+    .section-intro { color:var(--muted); font-size:13px; margin:-8px 0 18px; }
+    .section-top { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .report-box { display:flex; align-items:end; gap:10px; flex-wrap:wrap; padding:16px; background:linear-gradient(135deg,#f8f3fb,#fff); border:1px solid #eadff1; border-radius:10px; margin-bottom:18px; }
+    .report-box .field { min-width:190px; flex:1; }
+    .user-row { border-bottom:1px solid #ece7f1; padding:22px 20px; }
+    .row-main { flex:0 0 230px; }
+    .user-name { font-size:16px; font-weight:800; color:#24132f; }
+    .user-email { display:block; margin-top:5px; font-size:12px; color:#6b7280; word-break:break-word; }
+    .user-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .meta-pill { display:inline-flex; padding:4px 8px; border-radius:999px; background:#f3eef7; color:#4f2c68; font-size:11px; font-weight:700; }
+    .edit-grid { display:grid; grid-template-columns:repeat(4,minmax(130px,1fr)); gap:8px; align-items:end; }
+    .edit-grid .field { min-width:0; }
+    .edit-grid .password-wrap { width:100%; }
+    .edit-grid .password-wrap input { width:100%; }
+    .row-actions { align-items:stretch; }
+    .security-note { font-size:11px; color:#6b7280; margin-top:8px; }
+    @media (max-width:1100px) { .edit-grid { grid-template-columns:repeat(2,minmax(180px,1fr)); } }
+    @media (max-width:650px) { .edit-grid { grid-template-columns:1fr; } .row-main { flex-basis:auto; width:100%; } }
   </style>
 </head>
 <body>
@@ -87,7 +106,7 @@
       {% endif %}
       {% if current_user() and current_user().role in ['admin', 'master'] %}
       <a class="nav-link highlight" href="{{ url_for('usuarios') }}">Usuários</a>
-      <a class="nav-link" href="{{ url_for('auditoria') }}">Auditoria</a>
+      <a class="nav-link" href="{{ url_for('exportar_auditoria_pdf', mes=filtro_mes) }}" target="_blank">Relatório PDF</a>
       {% endif %}
       <a class="nav-link" href="{{ url_for('logout') }}" style="opacity:.8;">Sair</a>
     </nav>
@@ -117,7 +136,8 @@
       <h2>Criar usuário</h2>
       <form method="post" action="{{ url_for('criar_usuario') }}" class="form-inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="field"><label for="username">Usuário</label><input id="username" name="username" type="text" required></div>
+        <div class="field"><label for="username">Usuário</label><input id="username" name="username" type="text" autocomplete="username" required></div>
+        <div class="field"><label for="email">E-mail para login</label><input id="email" name="email" type="email" autocomplete="email" placeholder="usuario@alt.com.br" required></div>
         <div class="field"><label for="password">Senha</label><div class="password-wrap"><input id="password" name="password" type="password" required><button type="button" class="toggle-password" data-target="password" aria-label="Mostrar senha">Mostrar</button></div></div>
         <div class="field"><label for="password_confirm">Confirmar senha</label><div class="password-wrap"><input id="password_confirm" name="password_confirm" type="password" required><button type="button" class="toggle-password" data-target="password_confirm" aria-label="Mostrar senha">Mostrar</button></div></div>
         <div class="field"><label for="role">Perfil</label><select id="role" name="role"><option value="normal">Normal</option><option value="financeiro">Financeiro</option><option value="admin">Administrador</option></select></div>
@@ -126,32 +146,67 @@
     </section>
 
     <section class="card list-card">
-      <div class="list-header"><strong>Usuários cadastrados</strong></div>
+      <div class="list-header">
+        <div>
+          <strong>Usuários cadastrados</strong>
+          <div class="section-intro" style="margin:5px 0 0;">Selecione um usuário para editar dados, perfil e senha.</div>
+        </div>
+      </div>
+
+      <form class="report-box" method="get" action="{{ url_for('exportar_auditoria_pdf') }}" target="_blank">
+        <div class="field">
+          <label for="report_usuario">Usuário para relatório</label>
+          <select id="report_usuario" name="usuario">
+            <option value="">Todos os usuários</option>
+            {% for item in usuarios %}
+            <option value="{{ item.username }}">{{ item.username }}{% if item.email %} — {{ item.email }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="report_mes">Mês da movimentação</label>
+          <input id="report_mes" name="mes" type="month" value="{{ filtro_mes }}" required>
+        </div>
+        <button type="submit" class="btn success">📄 Imprimir movimentação PDF</button>
+      </form>
+
       {% for user in usuarios %}
         <div class="user-row">
-          <div class="row-main"><strong>{{ user.username }}</strong><small>{{ user.role }} · cadastrado em {{ user.created_at }}</small></div>
-          <div class="row-actions">
-            {% if user.username == 'admin' %}
-            <form method="post" action="{{ url_for('editar_usuario', user_id=user.id) }}" class="inline-form reset-password-form">
+          <div class="row-main">
+            <div class="user-name">{{ user.username }}</div>
+            <span class="user-email">{{ user.email or 'E-mail não informado' }}</span>
+            <div class="user-meta">
+              <span class="meta-pill">{{ user.role }}</span>
+              <span class="meta-pill">Cadastro: {{ user.created_at }}</span>
+            </div>
+          </div>
+
+          <div class="row-actions" style="flex:1;">
+            <form method="post" action="{{ url_for('editar_usuario', user_id=user.id) }}" class="inline-form" style="width:100%;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="password-inline-stack">
-                <div class="field compact-field"><label for="admin_username_{{ user.id }}">Usuário</label><input id="admin_username_{{ user.id }}" name="username" type="text" value="{{ user.username }}" required></div>
-                <div class="password-wrap compact"><input id="admin_password_{{ user.id }}" name="password" type="password" placeholder="Nova senha (opcional)"><button type="button" class="toggle-password" data-target="admin_password_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button></div>
-                <div class="password-wrap compact"><input id="admin_password_confirm_{{ user.id }}" name="password_confirm" type="password" placeholder="Confirmar nova senha"><button type="button" class="toggle-password" data-target="admin_password_confirm_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button></div>
+              <div class="edit-grid" style="width:100%;">
+                <div class="field"><label for="username_{{ user.id }}">Usuário</label><input id="username_{{ user.id }}" name="username" type="text" value="{{ user.username }}" required></div>
+                <div class="field"><label for="email_{{ user.id }}">E-mail</label><input id="email_{{ user.id }}" name="email" type="email" value="{{ user.email or '' }}" required></div>
+                <div class="field"><label for="role_{{ user.id }}">Perfil</label><select id="role_{{ user.id }}" name="role">
+                  <option value="normal" {% if user.role == 'normal' %}selected{% endif %}>Normal</option>
+                  <option value="financeiro" {% if user.role == 'financeiro' %}selected{% endif %}>Financeiro</option>
+                  <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrador</option>
+                  <option value="master" {% if user.role == 'master' %}selected{% endif %}>Master</option>
+                </select></div>
+                <div class="field"><label for="password_{{ user.id }}">Nova senha (opcional)</label><div class="password-wrap"><input id="password_{{ user.id }}" name="password" type="password" placeholder="Manter atual"><button type="button" class="toggle-password" data-target="password_{{ user.id }}">Mostrar</button></div></div>
+                <div class="field"><label for="password_confirm_{{ user.id }}">Confirmar nova senha</label><div class="password-wrap"><input id="password_confirm_{{ user.id }}" name="password_confirm" type="password" placeholder="Confirmar"><button type="button" class="toggle-password" data-target="password_confirm_{{ user.id }}">Mostrar</button></div></div>
               </div>
-              <button type="submit" class="btn ghost small">Salvar admin</button>
-            </form>
-            {% else %}
-            <form method="post" action="{{ url_for('reset_senha_usuario', user_id=user.id) }}" class="inline-form reset-password-form" onsubmit="return confirm('Deseja redefinir a senha deste usuário?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="password-inline-stack">
-                <div class="password-wrap compact"><input id="new_password_{{ user.id }}" name="new_password" type="password" placeholder="Nova senha" required minlength="4"><button type="button" class="toggle-password" data-target="new_password_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button></div>
-                <div class="password-wrap compact"><input id="new_password_confirm_{{ user.id }}" name="new_password_confirm" type="password" placeholder="Confirmar senha" required minlength="4"><button type="button" class="toggle-password" data-target="new_password_confirm_{{ user.id }}" aria-label="Mostrar senha">Mostrar</button></div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <button type="submit" class="btn success small">Salvar alterações</button>
+                <a class="btn ghost small" href="{{ url_for('exportar_auditoria_pdf', usuario=user.username, mes=filtro_mes) }}" target="_blank">📄 PDF do usuário</a>
               </div>
-              <button type="submit" class="btn ghost small">Resetar senha</button>
+              <div class="security-note">Por segurança, senhas existentes não podem ser visualizadas. Informe uma nova senha apenas se desejar trocá-la.</div>
             </form>
+
+            {% if user.username != 'admin' %}
             <form method="post" action="{{ url_for('excluir_usuario', user_id=user.id) }}" class="inline-form" onsubmit="return confirm('Deseja realmente excluir este usuário?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn danger small">Excluir</button>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn danger small">Excluir</button>
             </form>
             {% endif %}
           </div>
