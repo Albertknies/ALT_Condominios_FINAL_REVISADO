@@ -76,19 +76,19 @@ logging.basicConfig(level=logging.INFO, format="[ALT] %(levelname)s: %(message)s
 
 # Campos simples armazenados diretamente no cadastro.
 FIELDS = [
-    "nome", "cnpj", "unidades",
+    "nome", "cnpj", "unidades", "blocos", "vagasGaragem", "anoConstrucao",
     "sindicoTipo", "sindico", "cpfSindico", "unSindico", "telSindico", "emailSindico",
     "empresaSindico", "cnpjEmpresaSindico", "responsavelSindico", "telResponsavelSindico",
     "ataEleicao", "ultAGO", "inicioMandato", "fimMandato",
     "conselho", "qtdConselheiros",
     "banco", "agencia", "conta",
-    "conv", "convFis", "reg", "regFis", "admFis",
-    "ppci", "validPpci", "ppciFis", "ext", "recarga", "extFis", "brig", "qtdBrig",
-    "cxData", "cxFis", "dedData", "dedFis",
-    "seg", "segEmpresa", "segData", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg",
-    "luz", "agua", "gas", "gasTipo", "codCad", "empresaGas", "codigoGasOutra",
-    "quemLimpeza", "empresaLimpeza", "freqLimpeza", "cargaLimpeza", "limpFis",
-    "seguranca", "empresaSeg", "segFis2",
+    "conv", "convFis", "convReg", "reg", "regFis", "regReg", "adm", "admAss", "admFis",
+    "ppci", "validPpci", "ppciFis", "ext", "recarga", "recargaVenc", "extFis", "extDoc", "brig", "qtdBrig", "brigTreinoVenc", "brigTreinamento",
+    "cxRegular", "cxData", "cxVenc", "capacidadeCaixaAgua", "cxFis", "dedRegular", "dedData", "dedVenc", "dedFis",
+    "seg", "segEmpresa", "numApoliceSeg", "segData", "segVenc", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg", "emailCorretorSeg",
+    "luz", "agua", "gas", "gasTipo", "codCad", "empresaGas", "codigoGasOutra", "leituristaGas", "contatoLeituristaGas",
+    "quemLimpeza", "tipoLimpeza", "empresaLimpeza", "contatoEmpresaLimpeza", "nomeFuncionarioLimpeza", "funcaoLimpeza", "contatoFuncionarioLimpeza", "freqLimpeza", "cargaLimpeza", "horarioLimpeza", "limpFis",
+    "seguranca", "possuiPortaria", "tipoPortaria", "empresaSeg", "segFis2", "empresaPortariaFisica", "qtdFuncionariosPortaria", "empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota", "contratoPortariaFis",
     "juridico", "nomeJuridico", "percCobranca", "jurFis",
     "mercadinho", "nomeMerc", "respMerc", "contatoMerc", "repasseMerc", "periodoMerc", "dataMerc", "mercFis",
     "acessoSenha", "senhasAcesso", "possuiControlePortao", "qtdControlesPortao",
@@ -192,6 +192,7 @@ def init_db():
                 username TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'normal',
+                email TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP::text)
             )""")
             c.execute("""CREATE TABLE IF NOT EXISTS auditoria (
@@ -264,22 +265,12 @@ def init_db():
                         (MASTER_USERNAME, generate_password_hash(MASTER_PASSWORD), "master", datetime.now().isoformat(timespec="seconds")),
                     )
 
-            admin = c.execute("SELECT * FROM usuarios WHERE username = %s", ("admin",)).fetchone()
+            admin = c.execute("SELECT 1 FROM usuarios WHERE username = %s", ("admin",)).fetchone()
             if admin is None:
                 c.execute(
                     "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(%s,%s,%s,%s)",
                     ("admin", generate_password_hash("admin"), "admin", datetime.now().isoformat(timespec="seconds")),
                 )
-            else:
-                try:
-                    admin_password_ok = check_password_hash(admin["password_hash"], "admin")
-                except Exception:
-                    admin_password_ok = False
-                if not admin_password_ok or admin["role"] != "admin":
-                    c.execute(
-                        "UPDATE usuarios SET password_hash=%s, role=%s WHERE username=%s",
-                        (generate_password_hash("admin"), "admin", "admin"),
-                    )
             c.commit()
         return
 
@@ -297,6 +288,7 @@ def init_db():
             username TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'normal',
+            email TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )""")
         c.execute("""CREATE TABLE IF NOT EXISTS auditoria (
@@ -362,22 +354,12 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_financeiro_categorias_tipo ON financeiro_categorias(tipo)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_demandas_vencimento ON demandas(data_vencimento)")
 
-        admin = c.execute("SELECT * FROM usuarios WHERE username = ?", ("admin",)).fetchone()
+        admin = c.execute("SELECT 1 FROM usuarios WHERE username = ?", ("admin",)).fetchone()
         if admin is None:
             c.execute(
                 "INSERT INTO usuarios(username, password_hash, role, created_at) VALUES(?,?,?,?)",
                 ("admin", generate_password_hash("admin"), "admin", datetime.now().isoformat(timespec="seconds")),
             )
-        else:
-            try:
-                admin_password_ok = check_password_hash(admin["password_hash"], "admin")
-            except Exception:
-                admin_password_ok = False
-            if not admin_password_ok or admin["role"] != "admin":
-                c.execute(
-                    "UPDATE usuarios SET password_hash=?, role=? WHERE username=?",
-                    (generate_password_hash("admin"), "admin", "admin"),
-                )
         if MASTER_PASSWORD:
             master = c.execute("SELECT 1 FROM usuarios WHERE username = ?", (MASTER_USERNAME,)).fetchone()
             if master is None:
@@ -403,7 +385,6 @@ def ensure_finance_schema():
                 "status": "TEXT DEFAULT 'Recebido'",
             },
             "financeiro_despesas": {
-                "condominio_id": "BIGINT" if IS_POSTGRES else "INTEGER",
                 "categoria": "TEXT",
                 "fornecedor": "TEXT",
                 "metodo_pagamento": "TEXT",
@@ -418,6 +399,13 @@ def ensure_finance_schema():
         }
 
         if IS_POSTGRES:
+            user_columns = {row[0] for row in c.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
+                ("usuarios",),
+            ).fetchall()}
+            if "email" not in user_columns:
+                c.execute("ALTER TABLE usuarios ADD COLUMN email TEXT NOT NULL DEFAULT ''")
+
             for table_name, columns in finance_tables.items():
                 existing = {
                     row[0]
@@ -430,6 +418,10 @@ def ensure_finance_schema():
                     if col_name not in existing:
                         c.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_definition}")
         else:
+            user_columns = {row[1] for row in c.execute("PRAGMA table_info(usuarios)").fetchall()}
+            if "email" not in user_columns:
+                c.execute("ALTER TABLE usuarios ADD COLUMN email TEXT NOT NULL DEFAULT ''")
+
             for table_name, columns in finance_tables.items():
                 columns_existing = {row[1] for row in c.execute(f"PRAGMA table_info({table_name})").fetchall()}
                 for col_name, col_definition in columns.items():
@@ -496,13 +488,24 @@ def classify_due_days(days_left, warning_days=30):
 def parse_monetary(value):
     if value is None:
         raise ValueError("Informe o valor.")
+    raw = clean(value, 80).replace("R$", "").replace(" ", "")
+    if not raw:
+        raise ValueError("Informe o valor.")
     try:
-        amount = Decimal(str(value).replace(".", "").replace(",", ".")) if isinstance(value, str) else Decimal(str(value))
-    except InvalidOperation:
+        if "," in raw and "." in raw:
+            # Padrão brasileiro: 1.234,56
+            normalized = raw.replace(".", "").replace(",", ".")
+        elif "," in raw:
+            normalized = raw.replace(",", ".")
+        else:
+            # Ponto isolado é tratado como separador decimal: 1500.00.
+            normalized = raw
+        amount = Decimal(normalized)
+    except (InvalidOperation, ValueError):
         raise ValueError("Valor financeiro inválido.")
     if amount <= 0:
         raise ValueError("O valor deve ser maior que zero.")
-    return float(amount)
+    return float(amount.quantize(Decimal("0.01")))
 
 
 def month_add(month_text, months):
@@ -510,8 +513,13 @@ def month_add(month_text, months):
     if not month_text:
         month_text = datetime.now().strftime("%Y-%m")
     try:
-        year, month = map(int, month_text.split("-"))
-    except ValueError:
+        parts = month_text.split("-")
+        if len(parts) != 2:
+            raise ValueError
+        year, month = map(int, parts)
+        if year < 1900 or not 1 <= month <= 12:
+            raise ValueError
+    except (TypeError, ValueError):
         raise ValueError("Use o mês no formato YYYY-MM.")
     total_months = (year * 12 + month - 1) + months
     new_year, new_month = divmod(total_months, 12)
@@ -779,7 +787,7 @@ def collect_form(form):
                      for k in ("rua", "numero", "complemento", "bairro", "cidade", "estado", "cep")}
     d["endereco"]["estado"] = clean(d["endereco"].get("estado", ""), 2).upper()
 
-    for key in ("conselho", "conv", "convFis", "reg", "regFis", "ppci", "ppciFis", "ext", "extFis", "brig",
+    for key in ("conselho", "conv", "convFis", "convReg", "reg", "regFis", "regReg", "adm", "admAss", "admFis", "ppci", "ppciFis", "ext", "extFis", "brig",
                 "cxFis", "dedFis", "seg", "segFis", "limpFis", "seguranca", "segFis2", "juridico", "jurFis",
                 "mercadinho", "mercFis", "admFis", "gas"):
         d[key] = valid_choice(d[key], YES_NO)
@@ -800,12 +808,21 @@ def collect_form(form):
         if codigo or portao:
             d["controlesPortao"].append({"codigo": codigo, "portao": portao})
 
+    d["funcionariosPortaria"] = []
+    qtd_func_portaria = parse_int(d.get("qtdFuncionariosPortaria"), 0, 100, blank="") if d.get("tipoPortaria") == "Física" and d.get("possuiPortaria") == "Sim" else 0
+    for i in range(1, int(qtd_func_portaria or 0) + 1):
+        nome = clean(form.get(f"nomeFuncionarioPortaria_{i}", ""), 300)
+        cpf = strip_digits(form.get(f"cpfFuncionarioPortaria_{i}", ""))
+        telefone = clean(form.get(f"telefoneFuncionarioPortaria_{i}", ""), 40)
+        if nome or cpf or telefone:
+            d["funcionariosPortaria"].append({"nome": nome, "cpf": cpf, "telefone": telefone})
+
 
     d["unidades"] = parse_int(d["unidades"], 1, 100000)
     d["qtdBrig"] = parse_int(d["qtdBrig"], 0, 100, blank="")
     d["qtdConselheiros"] = parse_int(d["qtdConselheiros"], 0, 20, blank="")
 
-    for key in ("ataEleicao", "ultAGO", "inicioMandato", "fimMandato", "validPpci", "recarga", "cxData", "dedData", "segData"):
+    for key in ("ataEleicao", "ultAGO", "inicioMandato", "fimMandato", "validPpci", "recarga", "recargaVenc", "brigTreinoVenc", "cxData", "cxVenc", "dedData", "dedVenc", "segData", "segVenc"):
         d[key] = valid_date(d[key])
 
     if d["emailSindico"] and (len(d["emailSindico"]) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", d["emailSindico"])):
@@ -833,19 +850,47 @@ def collect_form(form):
         if not d["telResponsavelSindico"]:
             raise ValueError("informe o telefone do síndico responsável")
 
-    if d["conv"] != "Sim": d["convFis"] = ""
-    if d["reg"] != "Sim": d["regFis"] = ""
-    if d["ppci"] != "Sim": d["validPpci"] = d["ppciFis"] = ""
-    if d["ext"] != "Sim": d["recarga"] = d["extFis"] = ""
-    if d["brig"] != "Sim": d["qtdBrig"] = ""
+    if d["conv"] != "Sim":
+        d["convFis"] = d["convReg"] = ""
+    elif d["convFis"] != "Sim":
+        d["convReg"] = ""
+    if d["reg"] != "Sim":
+        d["regFis"] = d["regReg"] = ""
+    elif d["regFis"] != "Sim":
+        d["regReg"] = ""
+    if d["adm"] != "Sim":
+        d["admAss"] = d["admFis"] = ""
+    elif d["admAss"] != "Sim":
+        d["admFis"] = ""
+    if d["ppci"] != "Sim":
+        d["validPpci"] = d["ppciFis"] = ""
+    if d["ext"] != "Sim":
+        for key in ("recarga", "recargaVenc", "extFis", "extDoc"):
+            d[key] = ""
+    if d["brig"] != "Sim":
+        for key in ("qtdBrig", "brigTreinoVenc", "brigTreinamento"):
+            d[key] = ""
 
     qtd_b = int(d["qtdBrig"] or 0) if d["brig"] == "Sim" else 0
     d["brigadistas"] = []
     for i in range(qtd_b):
         d["brigadistas"].append({"nome": clean(form.get(f"brig{i}nome", ""), 300), "unidade": clean(form.get(f"brig{i}un", ""), 100)})
 
-    if d["seg"] != "Sim": d["segEmpresa"] = d["segData"] = d["segFis"] = ""
+    if d["seg"] != "Sim":
+        for key in ("segEmpresa", "numApoliceSeg", "segData", "segVenc", "segFis", "corretorResponsavelSeg", "contatoCorretorSeg", "emailCorretorSeg"):
+            d[key] = ""
     if d["seguranca"] != "Sim": d["empresaSeg"] = d["segFis2"] = ""
+    if d["possuiPortaria"] != "Sim":
+        for key in ("tipoPortaria", "empresaPortariaFisica", "qtdFuncionariosPortaria", "empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota", "contratoPortariaFis"):
+            d[key] = ""
+        d["funcionariosPortaria"] = []
+    elif d["tipoPortaria"] == "Física":
+        for key in ("empresaPortariaRemota", "contatoPortariaRemota", "responsavelPortariaRemota", "emailPortariaRemota"):
+            d[key] = ""
+    elif d["tipoPortaria"] == "Remota":
+        for key in ("empresaPortariaFisica", "qtdFuncionariosPortaria"):
+            d[key] = ""
+        d["funcionariosPortaria"] = []
     if d["juridico"] != "Sim": d["nomeJuridico"] = d["percCobranca"] = d["jurFis"] = ""
     if d["acessoSenha"] != "Sim":
         d["senhasAcesso"] = ""
@@ -972,7 +1017,16 @@ def log_audit(action, details="", username=None):
         c.commit()
 
 
-def create_user(username, password, role="normal", password_confirm=None):
+def validate_email(email, required=False):
+    email = clean(email, 254).lower()
+    if not email and not required:
+        return ""
+    if not email or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        raise ValueError("Informe um e-mail válido.")
+    return email
+
+
+def create_user(username, password, role="normal", password_confirm=None, email=""):
     username = clean(username).strip()
     if not username:
         raise ValueError("Informe o nome de usuário.")
@@ -983,34 +1037,44 @@ def create_user(username, password, role="normal", password_confirm=None):
     role = clean(role).lower() if role else "normal"
     if role not in {"admin", "normal", "financeiro", "master"}:
         raise ValueError("Perfil inválido.")
+    email = validate_email(email)
     with conn() as c:
-        existing = c.execute("SELECT id FROM usuarios WHERE username = ?", (username,)).fetchone()
+        existing = c.execute("SELECT id FROM usuarios WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
         if existing is not None:
             raise ValueError("Usuário já existe.")
+        if email:
+            email_existing = c.execute("SELECT id FROM usuarios WHERE lower(email) = lower(?) AND email <> ''", (email,)).fetchone()
+            if email_existing is not None:
+                raise ValueError("E-mail já está cadastrado.")
         c.execute(
-            "INSERT INTO usuarios(username, password_hash, role) VALUES(?,?,?)",
-            (username, generate_password_hash(str(password)), role),
+            "INSERT INTO usuarios(username, password_hash, role, email) VALUES(?,?,?,?)",
+            (username, generate_password_hash(str(password)), role, email),
         )
         c.commit()
     return username
 
 
-def update_user_profile(user_id, username, password=None, password_confirm=None):
+def update_user_profile(user_id, username, password=None, password_confirm=None, email=""):
     username = clean(username).strip()
     if not username:
         raise ValueError("Informe o nome de usuário.")
+    email = validate_email(email)
 
     with conn() as c:
-        current = c.execute("SELECT id, username, password_hash, role FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+        current = c.execute("SELECT id, username, password_hash, role, email FROM usuarios WHERE id = ?", (user_id,)).fetchone()
         if current is None:
             raise ValueError("Usuário não encontrado.")
 
         existing = c.execute(
-            "SELECT id FROM usuarios WHERE username = ? AND id != ?",
+            "SELECT id FROM usuarios WHERE username = ? COLLATE NOCASE AND id != ?",
             (username, user_id),
         ).fetchone()
         if existing is not None:
             raise ValueError("Usuário já existe.")
+        if email:
+            email_existing = c.execute("SELECT id FROM usuarios WHERE lower(email) = lower(?) AND id != ? AND email <> ''", (email, user_id)).fetchone()
+            if email_existing is not None:
+                raise ValueError("E-mail já está cadastrado.")
 
         if password is not None and str(password) != "":
             if len(str(password)) < 4:
@@ -1018,11 +1082,11 @@ def update_user_profile(user_id, username, password=None, password_confirm=None)
             if password_confirm is not None and str(password) != str(password_confirm):
                 raise ValueError("As senhas não conferem.")
             c.execute(
-                "UPDATE usuarios SET username = ?, password_hash = ? WHERE id = ?",
-                (username, generate_password_hash(str(password)), user_id),
+                "UPDATE usuarios SET username = ?, email = ?, password_hash = ? WHERE id = ?",
+                (username, email, generate_password_hash(str(password)), user_id),
             )
         else:
-            c.execute("UPDATE usuarios SET username = ? WHERE id = ?", (username, user_id))
+            c.execute("UPDATE usuarios SET username = ?, email = ? WHERE id = ?", (username, email, user_id))
         c.commit()
 
     return username
@@ -1033,7 +1097,10 @@ def authenticate_user(username, password):
     if not username:
         return None
     with conn() as c:
-        row = c.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
+        row = c.execute(
+            "SELECT * FROM usuarios WHERE username = ? COLLATE NOCASE OR (email <> '' AND email = ? COLLATE NOCASE) LIMIT 1",
+            (username, username.lower()),
+        ).fetchone()
     if row and check_password_hash(row["password_hash"], password or ""):
         return dict(row)
     return None
@@ -1071,7 +1138,7 @@ def finance_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         user = current_user()
-        if not user or user.get("role") not in {"admin", "financeiro", "master", "normal"}:
+        if not user or user.get("role") not in {"admin", "financeiro", "master"}:
             flash("Este perfil não tem acesso financeiro.", "error")
             return redirect(url_for("index"))
         return view(*args, **kwargs)
@@ -1140,7 +1207,7 @@ def usuarios():
         mes = datetime.now().strftime("%Y-%m")
 
     with conn() as c:
-        rows = c.execute("SELECT id, username, role, created_at FROM usuarios ORDER BY username COLLATE NOCASE").fetchall()
+        rows = c.execute("SELECT id, username, email, role, created_at FROM usuarios ORDER BY username COLLATE NOCASE").fetchall()
         audit_rows = c.execute(
             "SELECT username, action, details, created_at FROM auditoria WHERE strftime('%Y-%m', created_at) = ? ORDER BY id DESC LIMIT 20",
             (mes,),
@@ -1274,11 +1341,17 @@ def exportar_auditoria_pdf():
 @admin_required
 def criar_usuario():
     try:
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
+        # Aceita os nomes usados pelas versões antigas e novas do formulário de login.
+        username = (
+            request.form.get("username", "")
+            or request.form.get("login", "")
+            or request.form.get("email", "")
+        )
+        password = request.form.get("password", "") or request.form.get("senha", "")
         password_confirm = request.form.get("password_confirm", "")
         role = request.form.get("role", "normal")
-        create_user(username, password, role, password_confirm)
+        email = request.form.get("email", "").strip()
+        create_user(username, password, role, password_confirm, email)
         log_audit("criar_usuario", f"Usuário {username} criado por {session.get('username')}", session.get('username'))
         flash(f"Usuário {username} criado com sucesso.", "ok")
     except ValueError as exc:
@@ -1297,11 +1370,12 @@ def editar_usuario(user_id):
         return redirect(url_for("usuarios"))
 
     username = request.form.get("username", "")
+    email = request.form.get("email", "").strip()
     password = request.form.get("password", "")
     password_confirm = request.form.get("password_confirm", "")
 
     try:
-        new_username = update_user_profile(user_id, username, password=password if str(password).strip() else None, password_confirm=password_confirm)
+        new_username = update_user_profile(user_id, username, password=password if str(password).strip() else None, password_confirm=password_confirm, email=email)
     except ValueError as exc:
         flash(str(exc), "error")
         return redirect(url_for("usuarios"))
@@ -1364,8 +1438,13 @@ def excluir_usuario(user_id):
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("login") or request.form.get("username", "")
-        password = request.form.get("password", "")
+        # Aceita os nomes usados pelas versões antigas e novas do formulário de login.
+        username = (
+            request.form.get("username", "")
+            or request.form.get("login", "")
+            or request.form.get("email", "")
+        )
+        password = request.form.get("password", "") or request.form.get("senha", "")
         user = authenticate_user(username, password)
         if not user:
             flash("Credenciais inválidas.", "error")
@@ -1706,8 +1785,6 @@ def resumo_categoria():
 @login_required
 @finance_required
 def salvar_receita():
-    scope = get_finance_scope()
-    condominio_id_scope = scope["condominio_id"]
     grupo = clean(request.form.get("grupo", "ALT"), 50) or "ALT"
     condominio_id = request.form.get("condominio_id", "").strip()
     categoria = clean(request.form.get("categoria", ""), 100)
@@ -1720,10 +1797,6 @@ def salvar_receita():
     observacao = clean(request.form.get("observacao", ""), 500)
 
     try:
-        if (current_user() or {}).get("role") == "normal":
-            condominio_id = str(condominio_id_scope or "")
-        elif condominio_id_scope is not None and not condominio_id:
-            condominio_id = str(condominio_id_scope)
         value = parse_monetary(valor)
         datetime.strptime(mes_referencia, "%Y-%m")
         if data_pagamento:
@@ -1739,7 +1812,7 @@ def salvar_receita():
             grupo = "ALT"
     except (ValueError, TypeError):
         flash("Revise a receita informada: valor, mês e dados do condomínio são obrigatórios.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+        return redirect(url_for("financeiro", mes=mes_referencia))
 
     with conn() as c:
         c.execute(
@@ -1751,15 +1824,13 @@ def salvar_receita():
     destino = "ALT" if condominio_id is None else str(condominio_id)
     log_audit("financeiro_receita", f"Receita de R$ {value:,.2f} cadastrada para {destino} por {session.get('username')}", session.get('username'))
     flash("Receita cadastrada com sucesso.", "ok")
-    return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+    return redirect(url_for("financeiro", mes=mes_referencia))
 
 
 @app.post("/financeiro/receitas/<int:receita_id>/editar")
 @login_required
 @finance_required
 def editar_receita(receita_id):
-    scope = get_finance_scope()
-    condominio_id_scope = scope["condominio_id"]
     grupo = clean(request.form.get("grupo", "ALT"), 50) or "ALT"
     condominio_id = request.form.get("condominio_id", "").strip()
     categoria = clean(request.form.get("categoria", ""), 100)
@@ -1772,10 +1843,6 @@ def editar_receita(receita_id):
     observacao = clean(request.form.get("observacao", ""), 500)
 
     try:
-        if (current_user() or {}).get("role") == "normal":
-            condominio_id = str(condominio_id_scope or "")
-        elif condominio_id_scope is not None and not condominio_id:
-            condominio_id = str(condominio_id_scope)
         value = parse_monetary(valor)
         datetime.strptime(mes_referencia, "%Y-%m")
         if data_pagamento:
@@ -1791,7 +1858,7 @@ def editar_receita(receita_id):
             grupo = "ALT"
     except (ValueError, TypeError):
         flash("Revise a receita informada: valor, mês e dados do condomínio são obrigatórios.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+        return redirect(url_for("financeiro", mes=mes_referencia))
 
     with conn() as c:
         anterior = c.execute(
@@ -1800,7 +1867,7 @@ def editar_receita(receita_id):
         ).fetchone()
         if anterior is None:
             flash("Receita não encontrada.", "error")
-            return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+            return redirect(url_for("financeiro", mes=mes_referencia))
 
         c.execute(
             """UPDATE financeiro_receitas
@@ -1820,7 +1887,7 @@ def editar_receita(receita_id):
         session.get("username"),
     )
     flash("Receita atualizada com sucesso.", "ok")
-    return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+    return redirect(url_for("financeiro", mes=mes_referencia))
 
 
 @app.post("/financeiro/receitas/<int:receita_id>/excluir")
@@ -1843,14 +1910,12 @@ def excluir_receita(receita_id):
 @login_required
 @finance_required
 def salvar_despesa():
-    scope = get_finance_scope()
-    condominio_id = scope["condominio_id"]
     nome = clean(request.form.get("nome", ""), 200)
     categoria = clean(request.form.get("categoria", ""), 100)
     fornecedor = clean(request.form.get("fornecedor", ""), 200)
     valor = request.form.get("valor", "")
     vencimento = clean(request.form.get("vencimento", ""))
-    parcelas = int(request.form.get("parcelas", "1") or 1)
+    parcelas_raw = request.form.get("parcelas", "1") or "1"
     mes_referencia = clean(request.form.get("mes_referencia", datetime.now().strftime("%Y-%m")))
     metodo_pagamento = clean(request.form.get("metodo_pagamento", ""), 50)
     numero_documento = clean(request.form.get("numero_documento", ""), 80)
@@ -1859,23 +1924,23 @@ def salvar_despesa():
 
     if not nome or not vencimento:
         flash("Informe o nome da despesa e a data de vencimento.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+        return redirect(url_for("financeiro", mes=mes_referencia))
 
     try:
         value = parse_monetary(valor)
         datetime.strptime(vencimento, "%Y-%m-%d")
         datetime.strptime(mes_referencia, "%Y-%m")
-        parcelas = max(1, min(int(parcelas), 24))
-    except ValueError:
+        parcelas = max(1, min(int(parcelas_raw), 24))
+    except (ValueError, TypeError):
         flash("Revise os dados da despesa: valor, vencimento e mês obrigatórios.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+        return redirect(url_for("financeiro", mes=mes_referencia))
 
     items = _create_expense_installments(nome, value, vencimento, parcelas, mes_referencia, observacao)
     with conn() as c:
         c.executemany(
-            "INSERT INTO financeiro_despesas(condominio_id, nome, categoria, fornecedor, valor, vencimento, mes_referencia, parcelas, metodo_pagamento, numero_documento, status, observacao, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO financeiro_despesas(nome, categoria, fornecedor, valor, vencimento, mes_referencia, parcelas, metodo_pagamento, numero_documento, status, observacao, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
             [
-                (condominio_id, item["nome"], categoria or "Geral", fornecedor or "Fornecedor", item["valor"], item["vencimento"], item["mes_referencia"], item["parcelas"], metodo_pagamento or "Transferência", numero_documento or "", status, item["observacao"], datetime.now().isoformat(timespec="seconds"))
+                (item["nome"], categoria or "Geral", fornecedor or "Fornecedor", item["valor"], item["vencimento"], item["mes_referencia"], item["parcelas"], metodo_pagamento or "Transferência", numero_documento or "", status, item["observacao"], datetime.now().isoformat(timespec="seconds"))
                 for item in items
             ],
         )
@@ -1883,15 +1948,13 @@ def salvar_despesa():
 
     log_audit("financeiro_despesa", f"Despesa {nome} cadastrada em {parcelas} parcela(s) por {session.get('username')}", session.get('username'))
     flash(f"Despesa cadastrada com sucesso em {len(items)} parcela(s).", "ok")
-    return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+    return redirect(url_for("financeiro", mes=mes_referencia))
 
 
 @app.post("/financeiro/despesas/<int:despesa_id>/editar")
 @login_required
 @finance_required
 def editar_despesa(despesa_id):
-    scope = get_finance_scope()
-    condominio_id = scope["condominio_id"]
     nome = clean(request.form.get("nome", ""), 200)
     categoria = clean(request.form.get("categoria", ""), 100)
     fornecedor = clean(request.form.get("fornecedor", ""), 200)
@@ -1906,7 +1969,7 @@ def editar_despesa(despesa_id):
 
     if not nome or not vencimento:
         flash("Informe o nome da despesa e a data de vencimento.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+        return redirect(url_for("financeiro", mes=mes_referencia))
 
     try:
         value = parse_monetary(valor)
@@ -1915,7 +1978,7 @@ def editar_despesa(despesa_id):
         parcelas = max(1, min(int(parcelas), 24))
     except (ValueError, TypeError):
         flash("Revise os dados da despesa: valor, vencimento e mês obrigatórios.", "error")
-        return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+        return redirect(url_for("financeiro", mes=mes_referencia))
 
     with conn() as c:
         anterior = c.execute(
@@ -1924,14 +1987,14 @@ def editar_despesa(despesa_id):
         ).fetchone()
         if anterior is None:
             flash("Despesa não encontrada.", "error")
-            return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+            return redirect(url_for("financeiro", mes=mes_referencia))
 
         c.execute(
             """UPDATE financeiro_despesas
-               SET condominio_id=?, nome=?, categoria=?, fornecedor=?, valor=?, vencimento=?, mes_referencia=?,
+               SET nome=?, categoria=?, fornecedor=?, valor=?, vencimento=?, mes_referencia=?,
                    parcelas=?, metodo_pagamento=?, numero_documento=?, status=?, observacao=?
                WHERE id=?""",
-            (condominio_id, nome, categoria or "Geral", fornecedor or "Fornecedor", value,
+            (nome, categoria or "Geral", fornecedor or "Fornecedor", value,
              vencimento, mes_referencia, parcelas,
              metodo_pagamento or "Transferência", numero_documento or "",
              status, observacao, despesa_id),
@@ -1944,7 +2007,7 @@ def editar_despesa(despesa_id):
         session.get("username"),
     )
     flash("Despesa atualizada com sucesso.", "ok")
-    return redirect(url_for("financeiro", mes=mes_referencia, escopo=(str(scope["condominio_id"]) if scope.get("condominio_id") else "ALT")))
+    return redirect(url_for("financeiro", mes=mes_referencia))
 
 
 @app.post("/financeiro/despesas/<int:despesa_id>/excluir")
@@ -1973,8 +2036,7 @@ def relatorio_financeiro():
     except ValueError:
         mes = datetime.now().strftime("%Y-%m")
 
-    scope = get_finance_scope()
-    summary = get_finance_summary(mes, request.args.get("data_inicio"), request.args.get("data_fim"), scope)
+    summary = get_finance_summary(mes, request.args.get("data_inicio"), request.args.get("data_fim"))
     now = datetime.now()
     folder = PDFS / "financeiro" / mes
     folder.mkdir(parents=True, exist_ok=True)
@@ -1983,9 +2045,9 @@ def relatorio_financeiro():
 
     story = [
         Paragraph("ALT GESTÃO DE CONDOMÍNIOS", styles["TitleALT"]),
-        Paragraph(f"RELATÓRIO FINANCEIRO — {scope['label']}", styles["SubALT"]),
+        Paragraph("RELATÓRIO FINANCEIRO DA ALT", styles["SubALT"]),
         Paragraph(f"<b>Período:</b> {summary['periodo_label']}", styles["Value"]),
-        Paragraph(f"<b>Receita:</b> R$ {summary['receita']:.2f} &nbsp;&nbsp; <b>Despesa:</b> R$ {summary['despesa']:.2f} &nbsp;&nbsp; <b>Saldo:</b> R$ {summary['saldo']:.2f}", styles["Value"]),
+        Paragraph(f"<b>Receita:</b> {format_money(summary['receita'])} &nbsp;&nbsp; <b>Despesa:</b> {format_money(summary['despesa'])} &nbsp;&nbsp; <b>Saldo:</b> {format_money(summary['saldo'])}", styles["Value"]),
         Spacer(1, 12),
     ]
 
@@ -1993,7 +2055,7 @@ def relatorio_financeiro():
     for item in summary["receitas"]:
         receitas_table.append([
             Paragraph(pdf_value(item.get("condominio") or "Condomínio"), styles["Value"]),
-            Paragraph(pdf_value(f"R$ {float(item['valor']):.2f}"), styles["Value"]),
+            Paragraph(pdf_value(format_money(item['valor'])), styles["Value"]),
             Paragraph(pdf_value(item.get("observacao") or "-"), styles["Value"]),
         ])
     if len(receitas_table) == 1:
@@ -2018,7 +2080,7 @@ def relatorio_financeiro():
         despesas_table.append([
             Paragraph(pdf_value(item.get("nome") or "Despesa"), styles["Value"]),
             Paragraph(pdf_value(item.get("vencimento") or "-"), styles["Value"]),
-            Paragraph(pdf_value(f"R$ {float(item['valor']):.2f}"), styles["Value"]),
+            Paragraph(pdf_value(format_money(item['valor'])), styles["Value"]),
         ])
     if len(despesas_table) == 1:
         story.append(Paragraph("Nenhuma despesa registrada no período.", styles["Value"]))
@@ -2274,6 +2336,15 @@ def safe_name(name):
 
 def yn(v): return "Sim" if v=="Sim" else "Não" if v=="Não" else "—"
 
+def format_money(value):
+    try:
+        amount = Decimal(str(value)).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError, TypeError):
+        amount = Decimal("0.00")
+    text = f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {text}"
+
+
 def pdf_value(value): return html.escape(str(value)).replace("\n","<br/>")
 
 
@@ -2328,10 +2399,10 @@ def address_text(addr):
     return ", ".join(parts)
 
 
-ALT_PURPLE = colors.HexColor("#4F2C68")
-ALT_PURPLE_DARK = colors.HexColor("#321B45")
-ALT_LAVENDER = colors.HexColor("#F0ECF5")
-ALT_ROW = colors.HexColor("#F7F5FA")
+ALT_PURPLE = colors.HexColor("#6A4A7D")
+ALT_PURPLE_DARK = colors.HexColor("#3E2850")
+ALT_LAVENDER = colors.HexColor("#EEE8F3")
+ALT_ROW = colors.HexColor("#FAF8FC")
 ALT_LINE = colors.HexColor("#DCD6E5")
 ALT_GRAY = colors.HexColor("#706B78")
 ALT_LOGO = BASE / "alt_logo_trimmed.png"
@@ -2343,7 +2414,8 @@ def _prepare_alt_logo():
         source = Path("/mnt/data/novo.png")
     if source.exists() and not ALT_LOGO.exists():
         im = PILImage.open(source).convert("RGBA")
-        bbox = im.getbbox()
+        alpha = im.getchannel("A")
+        bbox = alpha.getbbox()
         if bbox:
             im.crop(bbox).save(ALT_LOGO)
     return ALT_LOGO if ALT_LOGO.exists() else None
@@ -2384,8 +2456,8 @@ def add_section(story,title,rows):
 styles=getSampleStyleSheet()
 styles.add(ParagraphStyle(name="TitleALT",parent=styles["Title"],fontName="Helvetica-Bold",fontSize=17,textColor=ALT_PURPLE_DARK,alignment=TA_CENTER,spaceAfter=4))
 styles.add(ParagraphStyle(name="SubALT",parent=styles["Normal"],fontSize=9,textColor=ALT_GRAY,alignment=TA_CENTER,spaceAfter=15))
-styles.add(ParagraphStyle(name="Section",parent=styles["Heading2"],fontName="Helvetica-Bold",fontSize=12,textColor=ALT_PURPLE_DARK,spaceBefore=10,spaceAfter=6))
-styles.add(ParagraphStyle(name="SectionNumber",parent=styles["Normal"],fontName="Helvetica-Bold",fontSize=10,textColor=ALT_PURPLE_DARK,alignment=TA_CENTER))
+styles.add(ParagraphStyle(name="Section",parent=styles["Heading2"],fontName="Helvetica-Bold",fontSize=12,textColor=ALT_PURPLE_DARK,spaceBefore=8,spaceAfter=5,leading=15))
+styles.add(ParagraphStyle(name="SectionNumber",parent=styles["Normal"],fontName="Helvetica-Bold",fontSize=10,textColor=ALT_PURPLE_DARK,alignment=TA_CENTER,leading=12))
 styles.add(ParagraphStyle(name="Label",parent=styles["Normal"],fontName="Helvetica-Bold",fontSize=8,textColor=ALT_PURPLE_DARK))
 styles.add(ParagraphStyle(name="Value",parent=styles["Normal"],fontSize=8.5,textColor=colors.HexColor("#25212A")))
 
@@ -2592,7 +2664,7 @@ def pdf(cid):
         pagesize=A4,
         rightMargin=36,
         leftMargin=36,
-        topMargin=58,
+        topMargin=72,
         bottomMargin=48,
         title=f"ALT - {name}",
         author="ALT Gestão de Condomínios",
@@ -2619,6 +2691,9 @@ def pdf(cid):
         ("CNPJ", d.get("cnpj")),
         ("Endereço", address_text(d.get("endereco"))),
         ("Quantidade de unidades", d.get("unidades")),
+        ("Quantidade de blocos/torres", d.get("blocos")),
+        ("Quantidade de vagas de garagem", d.get("vagasGaragem")),
+        ("Ano de construção", d.get("anoConstrucao")),
     ])
 
     sindico_rows = [("Tipo de síndico", d.get("sindicoTipo"))]
@@ -2676,9 +2751,13 @@ def pdf(cid):
         ("PPCI impresso", yn(d.get("ppciFis"))),
         ("Extintores em situação regular", yn(d.get("ext"))),
         ("Data da última recarga", format_date(d.get("recarga"))),
-        ("Documento dos extintores impresso", yn(d.get("extFis"))),
+        ("Próxima recarga", format_date(d.get("recargaVenc"))),
+        ("Laudo de recarga vigente", yn(d.get("extFis"))),
+        ("Comprovante impresso", yn(d.get("extDoc"))),
         ("Possui brigadistas", yn(d.get("brig"))),
         ("Quantidade de brigadistas", d.get("qtdBrig")),
+        ("Treinamento vence em", format_date(d.get("brigTreinoVenc"))),
+        ("Treinamento em dia", yn(d.get("brigTreinamento"))),
     ])
     for i, item in enumerate(d.get("brigadistas", []), 1):
         add_section(story, f"BRIGADISTA {i}", [
@@ -2687,18 +2766,26 @@ def pdf(cid):
         ])
 
     add_section(story, "7. LIMPEZA DA CAIXA D'ÁGUA E DEDETIZAÇÃO", [
+        ("Limpeza da caixa d'água em dia", yn(d.get("cxRegular"))),
         ("Data da última limpeza da caixa d'água", format_date(d.get("cxData"))),
+        ("Próxima limpeza", format_date(d.get("cxVenc"))),
+        ("Capacidade da caixa d’água", d.get("capacidadeCaixaAgua")),
         ("Comprovante da limpeza impresso", yn(d.get("cxFis"))),
+        ("Dedetização em dia", yn(d.get("dedRegular"))),
         ("Data da última dedetização", format_date(d.get("dedData"))),
+        ("Próxima dedetização", format_date(d.get("dedVenc"))),
         ("Comprovante da dedetização impresso", yn(d.get("dedFis"))),
     ])
 
     add_section(story, "8. SEGURO PREDIAL", [
         ("Possui seguro predial", yn(d.get("seg"))),
         ("Empresa/Seguradora", d.get("segEmpresa")),
+        ("Número da apólice", d.get("numApoliceSeg")),
         ("Corretor responsável", d.get("corretorResponsavelSeg")),
         ("Contato do corretor", d.get("contatoCorretorSeg")),
+        ("E-mail do corretor", d.get("emailCorretorSeg")),
         ("Data da última contratação/renovação", format_date(d.get("segData"))),
+        ("Vencimento do seguro", format_date(d.get("segVenc"))),
         ("Apólice impressa na pasta física", yn(d.get("segFis"))),
     ])
 
@@ -2710,21 +2797,45 @@ def pdf(cid):
         ("Código de cadastramento", d.get("codCad")),
         ("Empresa de gás", d.get("empresaGas")),
         ("Código para cadastro", d.get("codigoGasOutra")),
+        ("Nome do leiturista", d.get("leituristaGas")),
+        ("Contato do leiturista", d.get("contatoLeituristaGas")),
     ])
 
     add_section(story, "10. LIMPEZA DO CONDOMÍNIO", [
+        ("Tipo de limpeza", d.get("tipoLimpeza")),
         ("Quem realiza a limpeza", d.get("quemLimpeza")),
         ("Empresa", d.get("empresaLimpeza")),
+        ("Contato da empresa", d.get("contatoEmpresaLimpeza")),
+        ("Nome do funcionário", d.get("nomeFuncionarioLimpeza")),
+        ("Função", d.get("funcaoLimpeza")),
+        ("Contato do funcionário", d.get("contatoFuncionarioLimpeza")),
         ("Frequência", d.get("freqLimpeza")),
         ("Carga horária", d.get("cargaLimpeza")),
+        ("Horário de trabalho", d.get("horarioLimpeza")),
         ("Contrato de limpeza impresso", yn(d.get("limpFis"))),
     ])
 
     add_section(story, "11. SEGURANÇA / PORTARIA", [
         ("Possui segurança/portaria", yn(d.get("seguranca"))),
-        ("Empresa responsável", d.get("empresaSeg")),
-        ("Contrato impresso", yn(d.get("segFis2"))),
+        ("Empresa responsável pela segurança", d.get("empresaSeg")),
+        ("Contrato de segurança impresso", yn(d.get("segFis2"))),
+        ("Possui portaria", yn(d.get("possuiPortaria"))),
+        ("Tipo de portaria", d.get("tipoPortaria")),
+        ("Empresa da portaria física", d.get("empresaPortariaFisica")),
+        ("Quantidade de funcionários", d.get("qtdFuncionariosPortaria")),
+        ("Empresa da portaria remota", d.get("empresaPortariaRemota")),
+        ("Contato da portaria remota", d.get("contatoPortariaRemota")),
+        ("Responsável da portaria remota", d.get("responsavelPortariaRemota")),
+        ("E-mail da portaria remota", d.get("emailPortariaRemota")),
+        ("Contrato da portaria impresso", yn(d.get("contratoPortariaFis"))),
     ])
+
+    for i, item in enumerate(d.get("funcionariosPortaria", []), 1):
+        add_section(story, f"FUNCIONÁRIO DA PORTARIA {i}", [
+            ("Nome completo", item.get("nome")),
+            ("CPF", item.get("cpf")),
+            ("Telefone", item.get("telefone")),
+        ])
 
     add_section(story, "12. JURÍDICO / COBRANÇA", [
         ("Possui advogado/escritório", yn(d.get("juridico"))),
@@ -2778,13 +2889,13 @@ def pdf(cid):
         canvas.saveState()
         logo = _prepare_alt_logo()
         if logo:
-            canvas.drawImage(str(logo), 36, A4[1] - 47, width=49, height=32, preserveAspectRatio=True, mask="auto")
+            canvas.drawImage(str(logo), 36, A4[1] - 50, width=58, height=38, preserveAspectRatio=True, anchor='sw', mask="auto")
         canvas.setStrokeColor(ALT_LINE); canvas.setLineWidth(0.6)
-        canvas.line(36, A4[1] - 53, A4[0] - 36, A4[1] - 53)
+        canvas.line(36, A4[1] - 61, A4[0] - 36, A4[1] - 61)
         canvas.setFillColor(ALT_PURPLE_DARK); canvas.setFont("Helvetica-Bold", 9)
-        canvas.drawRightString(A4[0] - 36, A4[1] - 35, "Dossiê Condominial")
+        canvas.drawRightString(A4[0] - 36, A4[1] - 38, "Dossiê Condominial")
         canvas.setFillColor(ALT_GRAY); canvas.setFont("Helvetica", 7.5)
-        canvas.drawRightString(A4[0] - 36, A4[1] - 46, "Informações que geram tranquilidade")
+        canvas.drawRightString(A4[0] - 36, A4[1] - 49, "Informações que geram tranquilidade")
         canvas.setStrokeColor(ALT_LINE); canvas.line(36, 31, A4[0] - 36, 31)
         canvas.setFillColor(ALT_PURPLE_DARK); canvas.setFont("Helvetica-Bold", 8); canvas.drawString(36, 18, "alt")
         canvas.setFillColor(ALT_GRAY); canvas.setFont("Helvetica", 7.5); canvas.drawString(55, 18, "| Gestão de condomínios")
@@ -2880,11 +2991,19 @@ def salvar_demanda():
     try:
         datetime.strptime(data_vencimento, "%Y-%m-%d")
         condominio_id = int(condominio_id)
-    except ValueError:
+        if categoria not in {"Geral", "Manutenção", "Financeiro", "Documentação", "Segurança", "Limpeza"}:
+            categoria = "Geral"
+        if prioridade not in {"Baixa", "Média", "Alta", "Urgente"}:
+            prioridade = "Média"
+    except (ValueError, TypeError):
         flash("Data ou condomínio inválido.", "error")
         return redirect(url_for("demandas_painel"))
 
     with conn() as c:
+        exists = c.execute("SELECT id FROM condominios WHERE id = ?", (condominio_id,)).fetchone()
+        if not exists:
+            flash("Condomínio não encontrado.", "error")
+            return redirect(url_for("demandas_painel"))
         c.execute("""
             INSERT INTO demandas(condominio_id, titulo, descricao, categoria, prioridade, data_vencimento, status, responsavel, created_at)
             VALUES (?, ?, ?, ?, ?, ?, 'Pendente', ?, ?)
@@ -2900,6 +3019,9 @@ def salvar_demanda():
 @login_required
 def atualizar_status_demanda(demanda_id):
     novo_status = clean(request.form.get("status", "Pendente"), 30)
+    if novo_status not in {"Pendente", "Em andamento", "Concluída", "Cancelada"}:
+        flash("Status inválido.", "error")
+        return redirect(url_for("demandas_painel"))
     with conn() as c:
         row = c.execute("SELECT titulo FROM demandas WHERE id = ?", (demanda_id,)).fetchone()
         if not row:
@@ -2937,4 +3059,4 @@ def bad_request(error): return f"Solicitação inválida: {html.escape(str(error
 def not_found(_error): return "Página ou cadastro não encontrado.",404
 
 if __name__ == "__main__":
-    init_db(); serve(app,host="127.0.0.1",port=PORT,threads=4,ident="ALT-Condominios")
+    serve(app, host="127.0.0.1", port=PORT, threads=4, ident="ALT-Condominios")

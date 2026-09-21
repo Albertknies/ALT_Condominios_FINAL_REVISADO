@@ -106,7 +106,6 @@
       {% endif %}
       {% if current_user() and current_user().role in ['admin', 'master'] %}
       <a class="nav-link highlight" href="{{ url_for('usuarios') }}">Usuários</a>
-      <a class="nav-link" href="{{ url_for('exportar_auditoria_pdf', mes=filtro_mes) }}" target="_blank">Relatório PDF</a>
       {% endif %}
       <a class="nav-link" href="{{ url_for('logout') }}" style="opacity:.8;">Sair</a>
     </nav>
