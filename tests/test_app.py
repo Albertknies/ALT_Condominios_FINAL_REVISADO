@@ -26,6 +26,17 @@ class InputAndPostgresTests(unittest.TestCase):
         self.assertTrue(all(issue['condominio_id'] == 1 for issue in critical))
         self.assertEqual(get_critical_deadlines([]), [])
 
+    def test_critical_deadline_links_to_its_update_field(self):
+        from app import get_critical_deadlines
+        items = [{'id': 7, 'nome': 'Condomínio teste', 'issues': [
+            {'label': 'Dedetização', 'status': 'red', 'days_left': -1}]}]
+        deadline = get_critical_deadlines(items)[0]
+        self.assertEqual(deadline['update_field'], 'dedData')
+        with app.test_request_context():
+            from flask import url_for
+            link = url_for('editar', cid=deadline['condominio_id'], item=deadline['update_field'], _anchor=deadline['update_field'])
+        self.assertEqual(link, '/editar/7?item=dedData#dedData')
+
     def test_monetary_formats(self):
         for raw in ('R$ 1.234,56', '1234,56', '1234.56'):
             with self.subTest(raw=raw):

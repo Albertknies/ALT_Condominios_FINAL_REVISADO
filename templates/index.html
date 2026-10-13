@@ -259,7 +259,7 @@
       <div class="alt-carousel-slide" data-slide="0" id="criticalSlide" role="tabpanel" aria-labelledby="criticalTab">
         <div class="alt-panel-head"><h2>Vencimentos críticos</h2>{{ icon('clock') }}</div><p>Vencidos e próximos 30 dias, em ordem de urgência</p>
         {% for issue in critical_deadlines %}
-          <a class="alt-update-row alt-critical-row" href="{{ url_for('editar', cid=issue.condominio_id) }}"><span class="alt-update-icon {{ issue.status }}">{{ icon('triangle-alert' if issue.status == 'red' else 'clock') }}</span><div><strong>{{ issue.label }}</strong><span>{{ issue.condominio }}</span><span class="alt-critical-date {{ issue.status }}">{{ issue.days_left_label }} · {{ issue.date[8:10] }}/{{ issue.date[5:7] }}/{{ issue.date[:4] }}</span></div><span>›</span></a>
+          <a class="alt-update-row alt-critical-row" href="{{ url_for('editar', cid=issue.condominio_id, item=issue.update_field, _anchor=issue.update_field) }}"><span class="alt-update-icon {{ issue.status }}">{{ icon('triangle-alert' if issue.status == 'red' else 'clock') }}</span><div><strong>{{ issue.label }}</strong><span>{{ issue.condominio }}</span><span class="alt-critical-date {{ issue.status }}">{{ issue.days_left_label }} · {{ issue.date[8:10] }}/{{ issue.date[5:7] }}/{{ issue.date[:4] }}</span></div><span>›</span></a>
         {% else %}<div class="alt-carousel-empty">{{ icon('circle-check') }}<strong>Nenhum vencimento crítico</strong><p>Não há prazos vencidos ou a vencer nos próximos 30 dias entre os itens cadastrados.</p></div>{% endfor %}
       </div>
       <div class="alt-carousel-slide" data-slide="1" id="updatesSlide" role="tabpanel" aria-labelledby="updatesTab" hidden>

@@ -1489,11 +1489,19 @@ def importar():
 
 
 def get_critical_deadlines(items, limit=4):
+    fields = {
+        'Validade do PPCI': 'validPpci',
+        "Limpeza da caixa d'água": 'cxData',
+        'Mandato do síndico': 'fimMandato',
+        'Recarga de extintor': 'recarga',
+        'Seguro predial': 'segData',
+        'Dedetização': 'dedData',
+    }
     deadlines = []
     for item in items:
         for issue in item['issues']:
             if issue['status'] in {'red', 'yellow'}:
-                deadlines.append({**issue, 'condominio_id': item['id'], 'condominio': item['nome']})
+                deadlines.append({**issue, 'condominio_id': item['id'], 'condominio': item['nome'], 'update_field': fields.get(issue['label'], '')})
     deadlines.sort(key=lambda issue: (issue['days_left'], issue['condominio'].casefold(), issue['label']))
     return deadlines[:limit]
 
