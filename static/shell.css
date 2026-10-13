@@ -192,3 +192,17 @@ body.alt-app{--alt-sidebar-width:228px;background:#f1f2f4;color:#41414c}
 .alt-app .search-wrap>.alt-icon{width:18px;height:18px;color:#9d88ac;flex-shrink:0}
 @media(max-width:1150px){.alt-app .wallet-card{grid-template-columns:40px minmax(0,1fr) auto}.alt-app .wallet-meta{grid-column:2;grid-row:2;margin-top:5px}.alt-app .wallet-action-row{grid-column:3;grid-row:1/3}.alt-app .wallet-header{flex-direction:column;align-items:flex-start}}
 @media(max-width:650px){.alt-app .wallet-card{grid-template-columns:36px minmax(0,1fr);gap:10px 12px;padding:16px}.alt-app .wallet-person-icon{width:36px;height:36px}.alt-app .wallet-action-row{grid-column:2;grid-row:3;justify-content:flex-start;flex-wrap:wrap;margin-top:4px}.alt-app .wallet-card .condominios-container{grid-column:1/-1}.alt-app .wallet-meta{grid-column:2}.alt-app .wallet-title{font-size:13px}}
+/* Indicadores proporcionais em demandas e carteiras. */
+.alt-app .kpi-row.kpi-three{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;width:100%;align-items:stretch}
+.alt-app .kpi-card{min-width:0;min-height:128px;padding:20px 18px 17px 82px}
+.alt-app .kpi-header{font-size:12px;line-height:1.5;font-weight:500}
+.alt-app .kpi-header>span:last-child{display:grid;place-items:center;width:50px;height:54px;left:16px;top:-11px;padding:0;color:#9676ad;background:#fdfcfe;border:1px solid #ded5e8;border-radius:9px;box-shadow:0 3px 8px #49305e06}
+.alt-app .kpi-header>span:last-child .alt-icon{display:block;width:25px;height:25px;margin:0;vertical-align:middle;stroke-width:1.65}
+.alt-app .kpi-num{margin-top:10px;font-size:27px;line-height:1.25;font-weight:500}
+.alt-app .kpi-sub{margin-top:7px;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.alt-app .tag .alt-icon{width:13px;height:13px;display:inline-block;vertical-align:-2px}
+.alt-app .kpi-card.alert-red .kpi-header>span:last-child{color:#b78691;background:#fffafb}
+.alt-app .kpi-card.alert-yellow .kpi-header>span:last-child{color:#b9a06b;background:#fffdf8}
+.alt-app .kpi-card.alert-green .kpi-header>span:last-child{color:#7da693;background:#fafffc}
+@media(max-width:1200px){.alt-app .kpi-row.kpi-three{gap:14px}.alt-app .kpi-three .kpi-card{padding-left:73px;padding-right:14px}.alt-app .kpi-three .kpi-header>span:last-child{left:13px;width:46px;height:50px}.alt-app .kpi-three .kpi-header{font-size:11px}}
+@media(max-width:650px){.alt-app .kpi-row.kpi-three{grid-template-columns:1fr;gap:20px}.alt-app .kpi-three .kpi-card{min-height:114px;padding:17px 18px 15px 82px}.alt-app .kpi-three .kpi-header>span:last-child{left:16px;top:17px;width:48px;height:48px}.alt-app .kpi-three .kpi-header{font-size:12px}.alt-app .kpi-three .kpi-num{font-size:25px;margin-top:6px}.alt-app .kpi-three .kpi-sub{margin-top:4px}.alt-app .kpi-row:not(.kpi-three) .kpi-card{padding:49px 13px 14px}}

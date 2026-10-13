@@ -1,3 +1,4 @@
+{% from '_icons.html' import icon %}
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -261,11 +262,11 @@
   {% endwith %}
 
   <!-- KPIs de Demandas -->
-  <section class="kpi-row">
+  <section class="kpi-row kpi-three">
     <div class="kpi-card alert-red">
       <div class="kpi-header">
         <span>Vencidas</span>
-        <span>⚠️</span>
+        <span>{{ icon('triangle-alert') }}</span>
       </div>
       <div class="kpi-num" style="color: #dc2626;">{{ total_vencidas }}</div>
       <div class="kpi-sub">Exigem ação imediata</div>
@@ -274,7 +275,7 @@
     <div class="kpi-card alert-yellow">
       <div class="kpi-header">
         <span>Vencem em 7 dias</span>
-        <span>⏰</span>
+        <span>{{ icon('clock') }}</span>
       </div>
       <div class="kpi-num" style="color: #d97706;">{{ total_proximas }}</div>
       <div class="kpi-sub">Atenção no cronograma</div>
@@ -283,7 +284,7 @@
     <div class="kpi-card alert-green">
       <div class="kpi-header">
         <span>No Prazo / Em Dia</span>
-        <span>✅</span>
+        <span>{{ icon('circle-check') }}</span>
       </div>
       <div class="kpi-num" style="color: #16a34a;">{{ total_em_dia }}</div>
       <div class="kpi-sub">Demandas com prazo seguro</div>
@@ -387,7 +388,7 @@
             <span class="tag gray">Prioridade: {{ d.prioridade }}</span>
             <span class="tag gray">{{ d.categoria }}</span>
             {% if d.responsavel %}
-            <span class="tag gray">👤 {{ d.responsavel }}</span>
+            <span class="tag gray">{{ icon('user-round') }} {{ d.responsavel }}</span>
             {% endif %}
             <span class="tag {{ 'green' if d.status == 'Concluída' else 'gray' }}">Status: {{ d.status }}</span>
           </div>
