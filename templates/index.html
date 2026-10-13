@@ -344,7 +344,6 @@
       activeFilter = btn.dataset.filter;
       applyFilters();
     });
-    document.getElementById('noResults').hidden = visible > 0 || cards.length === 0;
   });
 
   searchInput.addEventListener('input', applyFilters);
