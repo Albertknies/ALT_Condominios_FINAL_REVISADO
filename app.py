@@ -135,7 +135,9 @@ class PostgresConnection:
         return self._connection.execute(_adapt_postgres_sql(sql), params)
 
     def executemany(self, sql, seq):
-        return self._connection.executemany(_adapt_postgres_sql(sql), seq)
+        # psycopg 3 oferece executemany no cursor, não na conexão.
+        with self._connection.cursor() as cursor:
+            cursor.executemany(_adapt_postgres_sql(sql), seq)
 
     def commit(self):
         self._connection.commit()
@@ -272,6 +274,7 @@ def init_db():
                     ("admin", generate_password_hash("admin"), "admin", datetime.now().isoformat(timespec="seconds")),
                 )
             c.commit()
+        ensure_finance_schema()
         return
 
     # SQLite local
@@ -385,6 +388,7 @@ def ensure_finance_schema():
                 "status": "TEXT DEFAULT 'Recebido'",
             },
             "financeiro_despesas": {
+                "condominio_id": "BIGINT REFERENCES condominios(id)" if IS_POSTGRES else "INTEGER REFERENCES condominios(id)",
                 "categoria": "TEXT",
                 "fornecedor": "TEXT",
                 "metodo_pagamento": "TEXT",
@@ -503,9 +507,17 @@ def parse_monetary(value):
         amount = Decimal(normalized)
     except (InvalidOperation, ValueError):
         raise ValueError("Valor financeiro inválido.")
+    if not amount.is_finite():
+        raise ValueError("Valor financeiro inválido.")
     if amount <= 0:
         raise ValueError("O valor deve ser maior que zero.")
-    return float(amount.quantize(Decimal("0.01")))
+    try:
+        rounded = amount.quantize(Decimal("0.01"))
+    except InvalidOperation:
+        raise ValueError("Valor financeiro inválido.")
+    if rounded <= 0:
+        raise ValueError("O valor deve ser de pelo menos R$ 0,01.")
+    return float(rounded)
 
 
 def month_add(month_text, months):
