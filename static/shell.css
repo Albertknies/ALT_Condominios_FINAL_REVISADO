@@ -59,3 +59,53 @@ body.alt-app{--alt-sidebar-width:224px;--primary:#4f2c68;--border:#e7e1ec;--text
 @media(prefers-reduced-motion:reduce){.alt-app .sidebar,.alt-app .side-link{transition:none}}
 .alt-app .address-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:600px){.alt-app .address-grid,.alt-app .mandate-grid{grid-template-columns:1fr}.alt-app .carteiras-grid{grid-template-columns:1fr}}
+/* Navegação clara e compacta, inspirada na referência aprovada. */
+body.alt-app{--alt-sidebar-width:228px;background:#f1f2f4;color:#41414c}
+.alt-app .sidebar{background:#fbfbfc;color:#61616d;border-right:1px solid #e2e3e9;box-shadow:2px 0 12px #22223803}
+.alt-app .brand-logo{background:transparent;padding:0 42px;margin:22px 14px 12px;border-radius:0}
+.alt-app .brand-logo img{max-height:84px}
+.alt-app .sidebar-caption{color:#9993a3;font-size:9px;letter-spacing:1.2px;margin-bottom:13px}
+.alt-app .nav-section{color:#a29ba9;font-size:9px;padding-top:17px}
+.alt-app .side-link{color:#696973;font-size:12px;font-weight:500;padding:12px 11px;margin-bottom:5px;border-radius:8px}
+.alt-app .side-link span{color:#85818d;font-size:18px}
+.alt-app .side-link:hover{background:#f2eef7}
+.alt-app .side-link.selected{background:#f0eafa;color:#79529a;box-shadow:none}
+.alt-app .side-link.selected span{color:#9872bd}
+.alt-app .sidebar-footer{color:#82788c;border-top:1px solid #e9e6ee;font-size:10px}
+.alt-app .sidebar-footer span{color:#a39baa}
+.alt-app .sidebar nav{scrollbar-color:#d2ccd9 transparent}
+.alt-app .workspace-header{margin-top:4px;margin-right:5px;margin-left:calc(var(--alt-sidebar-width) + 12px);height:76px;background:#fff;border:1px solid #e7e7eb;border-radius:11px;box-shadow:0 3px 10px #20203805;padding:0 24px}
+.alt-app .workspace-header strong{color:#8663a5;font-size:18px;font-weight:500;margin-top:1px}
+.alt-app .breadcrumb{font-size:11px;color:#92909a}
+.alt-app .account{color:#77727f}
+.alt-app main{padding:24px 22px 36px}
+.alt-app .card,.alt-app .kpi-card,.alt-app .stat-card,.alt-app .condo-card,.alt-app .quick-panel,.alt-app .controls-card{border:1px solid #e7e7ed;border-radius:10px;box-shadow:0 2px 6px #25213706}
+.alt-app h1{color:#5a5164;font-size:25px;font-weight:500;letter-spacing:-.5px}
+.alt-app h2{color:#655571;font-weight:500}
+.alt-app .kpi-row{gap:14px}
+.alt-app .kpi-card{min-height:124px;padding:18px 20px}
+.alt-app .kpi-header{font-weight:500;text-transform:none;color:#817789}
+.alt-app .kpi-header>span:last-child{background:#f3eef9;border:1px solid #e8e0ef;color:#9473ae;width:37px;height:37px;border-radius:9px}
+.alt-app .kpi-num{font-size:27px;font-weight:500;color:#63576f}
+.alt-app .kpi-card.alert-red,.alt-app .kpi-card.alert-yellow,.alt-app .kpi-card.alert-green{border-left:1px solid #e7e7ed}
+.alt-app .condo-card{border-left:1px solid #e7e7ed}
+.alt-app .quick-panel{padding:20px}
+.alt-app .quick-actions a{background:#faf8fc;color:#77548f;border-color:#e9e1ef;font-weight:500}
+.alt-app .filter-btn.active,.alt-app .finance-tab-button.is-active{background:#eee6f7;color:#79529a;border-color:#e3d5ef}
+.alt-app .alt-nav-search{position:relative;margin:0 14px 8px}
+.alt-app .alt-nav-search input{width:100%;min-width:0;padding:10px 11px 10px 31px;border:1px solid #dcdae2;border-radius:8px;background:#f1f2f4;color:#655d6f;font-size:11px;box-shadow:none}
+.alt-app .alt-nav-search span{position:absolute;left:11px;top:8px;color:#9a929f;font-size:17px}
+.alt-app .alt-nav-empty{font-size:11px;color:#8c7e99;padding:12px}
+.alt-app .sidebar [hidden]{display:none!important}
+.alt-app .alt-collapse{position:fixed;left:calc(var(--alt-sidebar-width) - 16px);top:22px;z-index:101;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;border:1px solid #ded9e6;background:#fff;color:#84748f;padding:0;box-shadow:0 2px 6px #25213708;cursor:pointer}
+.alt-app.alt-menu-compact{--alt-sidebar-width:72px}
+.alt-app.alt-menu-compact .brand-logo{margin:20px 10px 10px;padding:0}
+.alt-app.alt-menu-compact .brand-logo img{max-height:50px}
+.alt-app.alt-menu-compact .sidebar-caption,.alt-app.alt-menu-compact .nav-section,.alt-app.alt-menu-compact .sidebar-footer,.alt-app.alt-menu-compact .alt-nav-search,.alt-app.alt-menu-compact .side-link .alt-nav-label{display:none}
+.alt-app.alt-menu-compact .sidebar nav{padding:15px 9px}
+.alt-app.alt-menu-compact .side-link{justify-content:center;padding:13px 0}
+.alt-app.alt-menu-compact .side-link span{width:24px}
+@media(max-width:900px){.alt-app .alt-collapse{display:none}.alt-app .workspace-header{margin:5px 7px 0;height:68px;padding:0 14px}.alt-app .workspace-header strong{font-size:16px}.alt-app main{padding:20px 16px 30px}.alt-app.alt-menu-compact{--alt-sidebar-width:228px}.alt-app.alt-menu-compact .sidebar-caption,.alt-app.alt-menu-compact .nav-section,.alt-app.alt-menu-compact .sidebar-footer,.alt-app.alt-menu-compact .alt-nav-search,.alt-app.alt-menu-compact .side-link .alt-nav-label{display:block}.alt-app.alt-menu-compact .brand-logo{padding:0 42px;margin:22px 14px 12px}.alt-app.alt-menu-compact .brand-logo img{max-height:84px}.alt-app.alt-menu-compact .side-link{justify-content:flex-start;padding:12px 11px}.alt-app.alt-menu-compact .sidebar nav{padding:0 12px 16px}.alt-app .alt-nav-search input{font-size:16px}}
+@media print{.alt-app .alt-collapse{display:none!important}}
+.alt-app .side-link .alt-nav-label{width:auto;flex:1;text-align:left;font-size:12px;color:inherit;line-height:1.5}
+.alt-app .alt-menu-backdrop{color:transparent}
