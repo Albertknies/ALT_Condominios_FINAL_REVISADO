@@ -125,35 +125,11 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
 
 </style>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='shell.css') }}">
 </head>
-<body>
-<header class="top-navbar">
-  <div class="brand-group">
-    <img src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-    <div>
-      <div class="brand-title">ALT Gestão de Condomínios</div>
-      <div class="brand-subtitle">Painel financeiro</div>
-    </div>
-  </div>
-  <nav class="nav-menu">
-    <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }}</span>
-    <a class="nav-link" href="{{ url_for('index') }}">Condomínios</a>
-    <a class="nav-link" href="{{ url_for('demandas_painel') }}">Demandas</a>
-    <a class="nav-link" href="{{ url_for('carteiras') }}">Carteiras</a>
-    {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
-    <a class="nav-link highlight" href="{{ url_for('financeiro') }}">Financeiro</a>
-    {% endif %}
-    {% if is_master_user() %}
-    <a class="nav-link" href="{{ url_for('importar') }}">Importar</a>
-    <a class="nav-link" href="{{ url_for('exportar_json') }}">Exportar</a>
-    {% endif %}
-    {% if current_user() and current_user().role in ['admin', 'master'] %}
-    <a class="nav-link" href="{{ url_for('usuarios') }}">Usuários</a>
-    <a class="nav-link" href="{{ url_for('auditoria') }}">Auditoria</a>
-    {% endif %}
-    <a class="nav-link" href="{{ url_for('logout') }}" style="opacity:.8;">Sair</a>
-  </nav>
-</header>
+<body class="alt-app">
+{% set page_title = 'Painel financeiro' %}
+{% include '_navigation.html' %}
 
 <main>
   <div class="page-head">
@@ -707,5 +683,6 @@ h1 { margin:4px 0 6px; font-size:30px; color:var(--text); }
   {% endif %}
 
 </script>
+<script src="{{ url_for('static', filename='shell.js') }}" defer></script>
 </body>
 </html>

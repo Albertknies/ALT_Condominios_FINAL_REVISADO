@@ -22,37 +22,15 @@
     href="{{ url_for('static', filename='style.css') }}"
   >
 
+<link rel="stylesheet" href="{{ url_for('static', filename='shell.css') }}">
 </head>
 
 
-<body>
+<body class="alt-app">
 
 
-<header class="brand-header">
-
-  <div class="brand-content">
-
-    <img
-      class="brand-logo"
-      src="{{ url_for('static', filename='favicon.ico') }}"
-      alt="ALT"
-    >
-
-    <div class="brand-info">
-
-      <strong>
-        ALT Gestão de Condomínios
-      </strong>
-
-      <span>
-        Resumo por categoria
-      </span>
-
-    </div>
-
-  </div>
-
-</header>
+{% set page_title = 'Resumo por categoria' %}
+{% include '_navigation.html' %}
 
 
 
@@ -802,5 +780,6 @@
 </script>
 
 
+<script src="{{ url_for('static', filename='shell.js') }}" defer></script>
 </body>
 </html>

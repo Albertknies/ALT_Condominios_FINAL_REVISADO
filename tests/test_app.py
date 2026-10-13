@@ -76,6 +76,33 @@ class AppSmokeTests(unittest.TestCase):
         self.assertIsNone(row['condominio_id'])
         self.assertEqual(row['valor'], 100)
 
+    def test_navigation_is_shared_across_authenticated_pages(self):
+        create_user('albert', 'senha-segura', 'master', 'senha-segura')
+        self.client.post('/login', data={'username': 'albert', 'password': 'senha-segura'})
+        cid = save_condominio({'nome': 'Condomínio de navegação'})
+        paths = ['/', '/novo', f'/editar/{cid}', f'/salvo/{cid}', '/carteiras', '/demandas', '/financeiro', '/financeiro/categorias', '/financeiro/resumo-categoria', '/usuarios', '/auditoria', '/importar']
+        for path in paths:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                content = response.get_data(as_text=True)
+                self.assertEqual(content.count('id="sidebar"'), 1)
+                self.assertEqual(content.count('id="menuToggle"'), 1)
+                self.assertIn('/static/shell.css', content)
+                self.assertIn('/static/shell.js', content)
+                self.assertIn('aria-current="page"', content)
+
+    def test_navigation_preserves_role_visibility(self):
+        create_user('normal-menu', 'senha-segura', 'normal', 'senha-segura')
+        self.client.post('/login', data={'username': 'normal-menu', 'password': 'senha-segura'})
+        content = self.client.get('/demandas').get_data(as_text=True)
+        sidebar = content.split('<aside', 1)[1].split('</aside>', 1)[0]
+        self.assertNotIn('href="/usuarios"', sidebar)
+        self.assertNotIn('href="/auditoria"', sidebar)
+        self.assertNotIn('href="/financeiro"', sidebar)
+        self.assertNotIn('href="/importar"', sidebar)
+        self.assertIn('href="/carteiras"', sidebar)
+
     def test_root_page_redirects_to_login_when_not_authenticated(self):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 302)

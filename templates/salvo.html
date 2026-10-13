@@ -339,20 +339,11 @@
       *, *::before, *::after { transition: none !important; }
     }
   </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='shell.css') }}">
 </head>
-<body>
-  <header class="brand-header">
-    <div class="brand-content">
-      <img class="brand-logo" src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT Gestão de Condomínios">
-      <div class="brand-info">
-        <strong>ALT Gestão de Condomínios</strong>
-        <span>Cadastro e atualização</span>
-      </div>
-    </div>
-    <div class="header-actions">
-      <a class="btn ghost" href="{{ url_for('index') }}">⌂&nbsp; Home</a>
-    </div>
-  </header>
+<body class="alt-app">
+  {% set page_title = 'Cadastro salvo' %}
+{% include '_navigation.html' %}
 
   <main class="success-main">
     <section class="success-card" aria-labelledby="success-title">
@@ -399,5 +390,6 @@
   </main>
 
   <footer>ALT Gestão de Condomínios · Sistema local</footer>
+<script src="{{ url_for('static', filename='shell.js') }}" defer></script>
 </body>
 </html>

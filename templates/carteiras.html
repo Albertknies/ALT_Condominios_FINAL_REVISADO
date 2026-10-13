@@ -227,37 +227,12 @@
   }
   .btn-action:hover { background: #f3f4f6; }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='shell.css') }}">
 </head>
-<body>
+<body class="alt-app">
 
-<header class="top-navbar">
-  <div class="brand-group">
-    <img src="{{ url_for('static', filename='favicon.ico') }}" alt="ALT">
-    <div>
-      <div class="brand-title">ALT Gestão de Condomínios</div>
-      <div class="brand-subtitle">Carteiras de Síndicos</div>
-    </div>
-  </div>
-  <nav class="nav-menu">
-    <span class="user-badge">{{ current_user().username if current_user() else 'Visitante' }}</span>
-    <a class="nav-link highlight" href="{{ url_for('novo') }}">＋ Novo Condomínio</a>
-    <a class="nav-link" href="{{ url_for('index') }}">Condomínios</a>
-    <a class="nav-link" href="{{ url_for('demandas_painel') }}">Demandas</a>
-    <a class="nav-link active" href="{{ url_for('carteiras') }}">Carteiras</a>
-    {% if current_user() and current_user().role in ['admin', 'financeiro', 'master'] %}
-    <a class="nav-link" href="{{ url_for('financeiro') }}">Financeiro</a>
-    {% endif %}
-    {% if is_master_user() %}
-    <a class="nav-link" href="{{ url_for('importar') }}">Importar</a>
-    <a class="nav-link" href="{{ url_for('exportar_json') }}">Exportar</a>
-    {% endif %}
-    {% if current_user() and current_user().role in ['admin', 'master'] %}
-    <a class="nav-link" href="{{ url_for('usuarios') }}">Usuários</a>
-    <a class="nav-link" href="{{ url_for('auditoria') }}">Auditoria</a>
-    {% endif %}
-    <a class="nav-link" href="{{ url_for('logout') }}" style="opacity: 0.8;">Sair</a>
-  </nav>
-</header>
+{% set page_title = 'Equipe e carteiras' %}
+{% include '_navigation.html' %}
 
 <main>
   <!-- Métricas de Carteiras -->
@@ -377,5 +352,6 @@ document.querySelectorAll('.wallet-card').forEach((card) => {
   });
 });
 </script>
+<script src="{{ url_for('static', filename='shell.js') }}" defer></script>
 </body>
 </html>
