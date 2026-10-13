@@ -97,6 +97,19 @@ FIELDS = [
     "contatoConstrutora", "entregaConstrutora", "predioGarantia", "garantiaAte",
     "obs"
 ]
+DEADLINE_FIELDS = {
+    'validPpci': {'label': 'Validade do PPCI', 'due_field': 'validPpci', 'category': 'Segurança'},
+    'cxData': {'label': "Limpeza da caixa d'água", 'due_field': 'cxVenc', 'category': 'Limpeza'},
+    'fimMandato': {'label': 'Mandato do síndico', 'due_field': 'fimMandato', 'category': 'Administrativo'},
+    'recarga': {'label': 'Recarga de extintor', 'due_field': 'recargaVenc', 'category': 'Segurança'},
+    'segData': {'label': 'Seguro predial', 'due_field': 'segVenc', 'category': 'Administrativo'},
+    'dedData': {'label': 'Dedetização', 'due_field': 'dedVenc', 'category': 'Limpeza'},
+}
+TASK_CATEGORIES = ('Geral', 'Manutenção', 'Administrativo', 'Segurança', 'Segurança/PPCI', 'Assembleia', 'Jurídico', 'Financeiro', 'Documentação', 'Limpeza')
+TASK_PRIORITIES = ('Baixa', 'Média', 'Alta', 'Urgente')
+TASK_STATUSES = ('Pendente', 'Em andamento', 'Aguardando retorno', 'Aguardando aprovação', 'Concluída', 'Cancelada')
+TASK_CLOSED = {'Concluída', 'Cancelada'}
+
 YES_NO = {"Sim", "Não"}
 SINDICO_TIPOS = {"Morador", "Profissional"}
 GAS_TIPOS = {"Ultragás", "Administração", "Outra"}
@@ -378,6 +391,7 @@ def init_db():
 def ensure_finance_schema():
     with conn() as c:
         finance_tables = {
+            "demandas": {"origem_campo": "TEXT NOT NULL DEFAULT ''", "origem_data": "TEXT NOT NULL DEFAULT ''"},
             "financeiro_receitas": {
                 "condominio_id": "BIGINT" if IS_POSTGRES else "INTEGER",
                 "grupo": "TEXT DEFAULT 'ALT'",
@@ -432,6 +446,7 @@ def ensure_finance_schema():
                     if col_name not in columns_existing:
                         c.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_definition}")
 
+        c.execute("CREATE INDEX IF NOT EXISTS idx_demandas_origem ON demandas(condominio_id, origem_campo, status)")
         c.commit()
 
 
@@ -712,21 +727,14 @@ def get_condominio_alert_status(d):
     if not isinstance(d, dict):
         d = {}
 
-    checks = [
-        ("Validade do PPCI", d.get("validPpci"), 30),
-        ("Limpeza da caixa d'água", d.get("cxData"), 30),
-        ("Mandato do síndico", d.get("fimMandato"), 30),
-        ("Recarga de extintor", d.get("recarga"), 30),
-        ("Seguro predial", d.get("segData"), 30),
-        ("Dedetização", d.get("dedData"), 30),
-    ]
+    checks = [(metadata['label'], d.get(field), d.get(metadata['due_field']), field)
+              for field, metadata in DEADLINE_FIELDS.items()]
 
     issues = []
     level = "green"
-    for label, raw_value, warning_days in checks:
-        if not raw_value:
-            continue
-        due_date = get_issue_due_date(label, raw_value)
+    for label, raw_value, explicit_due, field in checks:
+        warning_days = 30
+        due_date = parse_date_value(explicit_due) or get_issue_due_date(label, raw_value)
         if not due_date:
             continue
         days_left = (due_date - datetime.now().date()).days
@@ -737,6 +745,7 @@ def get_condominio_alert_status(d):
             level = "yellow"
         issues.append({
             "label": label,
+            "field": field,
             "date": due_date.isoformat(),
             "date_label": describe_due_date(due_date, days_left),
             "status": status,
@@ -1514,6 +1523,11 @@ def index():
     with conn() as c:
         rows = c.execute("SELECT * FROM condominios ORDER BY nome COLLATE NOCASE, id").fetchall()
 
+    workday = datetime.now().date().isoformat()
+    with conn() as c:
+        operation_counts = dict(c.execute("SELECT COALESCE(SUM(CASE WHEN data_vencimento < ? THEN 1 ELSE 0 END),0) AS atrasadas, COALESCE(SUM(CASE WHEN data_vencimento = ? THEN 1 ELSE 0 END),0) AS hoje, COALESCE(SUM(CASE WHEN status IN ('Aguardando retorno','Aguardando aprovação') THEN 1 ELSE 0 END),0) AS aguardando FROM demandas WHERE status NOT IN ('Concluída','Cancelada')", (workday, workday)).fetchone())
+        operation_tasks = c.execute("SELECT d.id,d.titulo,d.data_vencimento,d.responsavel,d.status,c.nome AS condominio FROM demandas d JOIN condominios c ON c.id=d.condominio_id WHERE d.status NOT IN ('Concluída','Cancelada') AND d.data_vencimento <= ? ORDER BY CASE WHEN d.prioridade = 'Urgente' THEN 0 ELSE 1 END,d.data_vencimento,d.id LIMIT 5", (workday,)).fetchall()
+
     total = len(rows)
     profissionais = 0
     moradores = 0
@@ -1567,6 +1581,7 @@ def index():
         sem_sindico=max(0, total - profissionais - moradores),
         alert_summary=summary,
         critical_deadlines=get_critical_deadlines(items),
+        operation_counts=operation_counts, operation_tasks=operation_tasks,
     )
 
 
@@ -2253,6 +2268,100 @@ def pdf_wallet():
     doc = SimpleDocTemplate(str(path), pagesize=A4, rightMargin=36, leftMargin=36, topMargin=38, bottomMargin=38)
     doc.build(story)
     return send_file(path, as_attachment=True, download_name=arquivo, mimetype="application/pdf")
+
+
+@app.route('/condominios/<int:cid>/prazo/<field>', methods=['GET', 'POST'])
+@login_required
+def atualizar_prazo(cid, field):
+    metadata = DEADLINE_FIELDS.get(field)
+    if not metadata:
+        abort(404)
+    with conn() as c:
+        row = c.execute('SELECT * FROM condominios WHERE id=?', (cid,)).fetchone()
+    if not row:
+        abort(404)
+    d = load_data(row)
+    error = None
+    if request.method == 'POST':
+        source = request.form.get('data_servico', '').strip()
+        due = request.form.get('data_validade', '').strip()
+        try:
+            if not parse_date_value(due) or (source and not parse_date_value(source)):
+                raise ValueError('Informe datas válidas.')
+            if metadata['due_field'] != field and source and source > due:
+                raise ValueError('A próxima validade precisa ser igual ou posterior à data do serviço.')
+            with conn() as c:
+                if not IS_POSTGRES:
+                    c.execute('BEGIN IMMEDIATE')
+                locked = c.execute('SELECT * FROM condominios WHERE id=?' + (' FOR UPDATE' if IS_POSTGRES else ''), (cid,)).fetchone()
+                if not locked:
+                    abort(404)
+                if request.form.get('versao') != locked['atualizado_em']:
+                    raise ValueError('Este cadastro foi alterado por outra pessoa. Reabra o item para atualizar os dados atuais.')
+                updated = load_data(locked)
+                previous = {field: updated.get(field, ''), metadata['due_field']: updated.get(metadata['due_field'], '')}
+                updated[field] = due if metadata['due_field'] == field else source
+                updated[metadata['due_field']] = due
+                c.execute('UPDATE condominios SET dados_json=?, atualizado_em=? WHERE id=?',
+                          (json.dumps(updated, ensure_ascii=False), datetime.now().isoformat(timespec='microseconds'), cid))
+                c.commit()
+            log_audit('atualizar_prazo', f"{locked['nome']} · {metadata['label']}: {previous} → serviço {source or 'não informado'}, validade {due}", session.get('username'))
+            auto_backup()
+            flash('Prazo atualizado. O painel já considera a nova validade.', 'ok')
+            return redirect(url_for('index'))
+        except ValueError as exc:
+            error = str(exc)
+    with conn() as c:
+        task = c.execute("SELECT id FROM demandas WHERE condominio_id=? AND origem_campo=? AND status NOT IN ('Concluída','Cancelada') ORDER BY id DESC LIMIT 1", (cid, field)).fetchone()
+    issue = next((issue for issue in get_condominio_alert_status(d)['issues'] if issue['field'] == field), None)
+    return render_template('prazo.html', cid=cid, d=d, metadata=metadata, field=field, version=row['atualizado_em'], issue=issue, task=task, error=error)
+
+
+@app.route('/demandas/<int:demanda_id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_demanda(demanda_id):
+    with conn() as c:
+        row = c.execute('SELECT d.*, c.nome AS condominio_nome FROM demandas d JOIN condominios c ON c.id=d.condominio_id WHERE d.id=?', (demanda_id,)).fetchone()
+        history = c.execute('SELECT username, details, created_at FROM auditoria WHERE details LIKE ? ORDER BY id DESC LIMIT 10', (f'Demanda #{demanda_id}:%',)).fetchall()
+    if not row:
+        abort(404)
+    error = None
+    if request.method == 'POST':
+        try:
+            values = read_task_form(request.form)
+            status = request.form.get('status', '')
+            if status not in TASK_STATUSES:
+                raise ValueError('Selecione um status válido.')
+            with conn() as c:
+                if row['origem_campo'] and status not in TASK_CLOSED:
+                    if not IS_POSTGRES:
+                        c.execute('BEGIN IMMEDIATE')
+                    c.execute('SELECT id FROM condominios WHERE id=?' + (' FOR UPDATE' if IS_POSTGRES else ''), (row['condominio_id'],)).fetchone()
+                    other = c.execute("SELECT id FROM demandas WHERE condominio_id=? AND origem_campo=? AND id<>? AND status NOT IN ('Concluída','Cancelada') LIMIT 1", (row['condominio_id'], row['origem_campo'], demanda_id)).fetchone()
+                    if other:
+                        raise ValueError('Já existe uma demanda em aberto para este vencimento. Acompanhe a demanda existente.')
+                c.execute('UPDATE demandas SET titulo=?, descricao=?, categoria=?, prioridade=?, data_vencimento=?, responsavel=?, status=? WHERE id=?', (*values, status, demanda_id))
+                c.commit()
+            log_audit('editar_demanda', f"Demanda #{demanda_id}: prazo {row['data_vencimento']} → {values[4]}, responsável {row['responsavel'] or 'não definido'} → {values[5] or 'não definido'}, status {row['status']} → {status}", session.get('username'))
+            flash('Demanda atualizada.', 'ok')
+            return redirect(url_for('demandas_painel', _anchor=f'demanda-{demanda_id}'))
+        except ValueError as exc:
+            error = str(exc)
+    return render_template('demanda_editar.html', demanda=dict(row), categories=TASK_CATEGORIES, priorities=TASK_PRIORITIES, statuses=TASK_STATUSES, error=error, history=history)
+
+
+def read_task_form(form):
+    titulo = clean(form.get('titulo', ''), 200)
+    descricao = clean(form.get('descricao', ''), 1000)
+    categoria = clean(form.get('categoria', 'Geral'), 50)
+    prioridade = clean(form.get('prioridade', 'Média'), 20)
+    prazo = clean(form.get('data_vencimento', ''))
+    responsavel = clean(form.get('responsavel', ''), 150)
+    if not titulo or not parse_date_value(prazo):
+        raise ValueError('Título e prazo válido são obrigatórios.')
+    if categoria not in TASK_CATEGORIES or prioridade not in TASK_PRIORITIES:
+        raise ValueError('Selecione categoria e prioridade válidas.')
+    return titulo, descricao, categoria, prioridade, prazo, responsavel
 
 
 @app.route("/editar/<int:cid>")
@@ -2958,7 +3067,7 @@ def demandas_painel():
             FROM demandas d 
             LEFT JOIN condominios c ON c.id = d.condominio_id 
             ORDER BY 
-                CASE WHEN d.status = 'Concluída' THEN 1 ELSE 0 END,
+                CASE WHEN d.status IN ('Concluída','Cancelada') THEN 1 ELSE 0 END,
                 d.data_vencimento ASC
         """).fetchall()
 
@@ -2972,9 +3081,9 @@ def demandas_painel():
         due_date = parse_date_value(item.get("data_vencimento"))
         if due_date:
             days_left = (due_date - today).days
-            if item["status"] == "Concluída":
-                item["status_prazo"] = "green"
-                item["prazo_label"] = "Concluída"
+            if item["status"] in TASK_CLOSED:
+                item["status_prazo"] = "closed"
+                item["prazo_label"] = item["status"]
             elif days_left < 0:
                 item["status_prazo"] = "red"
                 item["prazo_label"] = f"Vencida há {abs(days_left)} dia(s)"
@@ -2993,10 +3102,35 @@ def demandas_painel():
 
         demandas_formatadas.append(item)
 
+    prefill = {'responsavel': session.get('username', ''), 'data_vencimento': today.isoformat()}
+    cid = request.args.get('condominio', type=int)
+    field = request.args.get('item', '')
+    if cid and field in DEADLINE_FIELDS:
+        with conn() as c:
+            source = c.execute('SELECT * FROM condominios WHERE id=?', (cid,)).fetchone()
+        if source:
+            source_data = load_data(source)
+            issue = next((x for x in get_condominio_alert_status(source_data)['issues'] if x['field'] == field), None)
+            if issue:
+                prefill.update(condominio_id=cid, titulo=DEADLINE_FIELDS[field]['label'], categoria=DEADLINE_FIELDS[field]['category'], prioridade='Urgente' if issue['days_left'] <= 0 else 'Alta', descricao=f"Providenciar {DEADLINE_FIELDS[field]['label'].lower()}. Validade registrada: {issue['date']}.", origem_campo=field)
+    selected_status = request.args.get('status', 'ativos')
+    selected_condominio = request.args.get('condominio', type=int)
+    selected_responsavel = request.args.get('responsavel', '')
+    selected_prazo = request.args.get('prazo', '')
+    query = clean(request.args.get('busca', ''), 200).casefold()
+    all_count = len(demandas_formatadas)
+    demandas_formatadas = [item for item in demandas_formatadas if
+        (selected_status == 'todos' or (selected_status == 'ativos' and item['status'] not in TASK_CLOSED) or item['status'] == selected_status or (selected_status == 'aguardando' and item['status'] in {'Aguardando retorno','Aguardando aprovação'}))
+        and (not selected_condominio or item['condominio_id'] == selected_condominio)
+        and (not selected_responsavel or (item.get('responsavel') or '').casefold() == selected_responsavel.casefold())
+        and (not selected_prazo or item['status_prazo'] == selected_prazo or (selected_prazo == 'hoje' and item['data_vencimento'] == today.isoformat() and item['status'] not in TASK_CLOSED))
+        and (not query or query in ' '.join(str(item.get(key) or '') for key in ('titulo', 'condominio_nome', 'descricao', 'responsavel')).casefold())]
     return render_template(
         "demandas.html",
         demandas=demandas_formatadas,
         condominios=condominios,
+        prefill=prefill, categories=TASK_CATEGORIES, priorities=TASK_PRIORITIES, statuses=TASK_STATUSES,
+        selected_status=selected_status, selected_condominio=selected_condominio, selected_responsavel=selected_responsavel, selected_prazo=selected_prazo, query=query, all_count=all_count,
         total_vencidas=vencidas,
         total_proximas=proximas,
         total_em_dia=em_dia,
@@ -3007,61 +3141,62 @@ def demandas_painel():
 @app.post("/demandas/salvar")
 @login_required
 def salvar_demanda():
-    condominio_id = request.form.get("condominio_id", "").strip()
-    titulo = clean(request.form.get("titulo", ""), 200)
-    descricao = clean(request.form.get("descricao", ""), 1000)
-    categoria = clean(request.form.get("categoria", "Geral"), 50)
-    prioridade = clean(request.form.get("prioridade", "Média"), 20)
-    data_vencimento = clean(request.form.get("data_vencimento", ""))
-    responsavel = clean(request.form.get("responsavel", ""), 150)
-
-    if not condominio_id or not titulo or not data_vencimento:
-        flash("Condomínio, título e data de vencimento são obrigatórios.", "error")
-        return redirect(url_for("demandas_painel"))
-
     try:
-        datetime.strptime(data_vencimento, "%Y-%m-%d")
-        condominio_id = int(condominio_id)
-        if categoria not in {"Geral", "Manutenção", "Financeiro", "Documentação", "Segurança", "Limpeza"}:
-            categoria = "Geral"
-        if prioridade not in {"Baixa", "Média", "Alta", "Urgente"}:
-            prioridade = "Média"
-    except (ValueError, TypeError):
-        flash("Data ou condomínio inválido.", "error")
-        return redirect(url_for("demandas_painel"))
-
-    with conn() as c:
-        exists = c.execute("SELECT id FROM condominios WHERE id = ?", (condominio_id,)).fetchone()
-        if not exists:
-            flash("Condomínio não encontrado.", "error")
-            return redirect(url_for("demandas_painel"))
-        c.execute("""
-            INSERT INTO demandas(condominio_id, titulo, descricao, categoria, prioridade, data_vencimento, status, responsavel, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'Pendente', ?, ?)
-        """, (condominio_id, titulo, descricao, categoria, prioridade, data_vencimento, responsavel, datetime.now().isoformat(timespec="seconds")))
-        c.commit()
-
-    log_audit("criar_demanda", f"Demanda '{titulo}' criada por {session.get('username')}", session.get('username'))
-    flash("Demanda registrada com sucesso.", "ok")
-    return redirect(url_for("demandas_painel"))
+        cid = int(request.form.get('condominio_id', ''))
+        values = read_task_form(request.form)
+        field = request.form.get('origem_campo', '')
+        if field and field not in DEADLINE_FIELDS:
+            raise ValueError('Origem de vencimento inválida.')
+        with conn() as c:
+            if not IS_POSTGRES:
+                c.execute('BEGIN IMMEDIATE')
+            source = c.execute('SELECT * FROM condominios WHERE id=?' + (' FOR UPDATE' if IS_POSTGRES else ''), (cid,)).fetchone()
+            if not source:
+                raise ValueError('Condomínio não encontrado.')
+            source_date = ''
+            if field:
+                existing = c.execute("SELECT id FROM demandas WHERE condominio_id=? AND origem_campo=? AND status NOT IN ('Concluída','Cancelada') ORDER BY id DESC LIMIT 1", (cid, field)).fetchone()
+                if existing:
+                    return redirect(url_for('editar_demanda', demanda_id=existing['id']))
+                issue = next((x for x in get_condominio_alert_status(load_data(source))['issues'] if x['field'] == field), None)
+                if not issue:
+                    raise ValueError('O item não possui validade cadastrada.')
+                source_date = issue['date']
+            insert_sql = "INSERT INTO demandas(condominio_id,titulo,descricao,categoria,prioridade,data_vencimento,responsavel,status,created_at,origem_campo,origem_data) VALUES(?,?,?,?,?,?,?,'Pendente',?,?,?)"
+            cursor = c.execute(insert_sql + (' RETURNING id' if IS_POSTGRES else ''), (cid, *values, datetime.now().isoformat(timespec='seconds'), field, source_date))
+            task_id = cursor.fetchone()['id'] if IS_POSTGRES else cursor.lastrowid
+            c.commit()
+        log_audit('criar_demanda', f"Demanda #{task_id}: '{values[0]}' criada para {source['nome']}, responsável {values[5] or 'não definido'}, prazo {values[4]}", session.get('username'))
+        flash('Demanda criada. Acompanhe o responsável, o prazo e o andamento.', 'ok')
+    except (ValueError, TypeError) as exc:
+        flash(str(exc) or 'Revise os dados da demanda.', 'error')
+    return redirect(url_for('demandas_painel'))
 
 
 @app.post("/demandas/<int:demanda_id>/status")
 @login_required
 def atualizar_status_demanda(demanda_id):
     novo_status = clean(request.form.get("status", "Pendente"), 30)
-    if novo_status not in {"Pendente", "Em andamento", "Concluída", "Cancelada"}:
+    if novo_status not in TASK_STATUSES:
         flash("Status inválido.", "error")
         return redirect(url_for("demandas_painel"))
     with conn() as c:
-        row = c.execute("SELECT titulo FROM demandas WHERE id = ?", (demanda_id,)).fetchone()
+        if not IS_POSTGRES:
+            c.execute('BEGIN IMMEDIATE')
+        row = c.execute("SELECT * FROM demandas WHERE id = ?", (demanda_id,)).fetchone()
         if not row:
             flash("Demanda não encontrada.", "error")
             return redirect(url_for("demandas_painel"))
+        if row['origem_campo'] and novo_status not in TASK_CLOSED:
+            c.execute('SELECT id FROM condominios WHERE id=?' + (' FOR UPDATE' if IS_POSTGRES else ''), (row['condominio_id'],)).fetchone()
+            other = c.execute("SELECT id FROM demandas WHERE condominio_id=? AND origem_campo=? AND id<>? AND status NOT IN ('Concluída','Cancelada') LIMIT 1", (row['condominio_id'], row['origem_campo'], demanda_id)).fetchone()
+            if other:
+                flash('Já existe uma demanda em aberto para este item.', 'error')
+                return redirect(url_for('editar_demanda', demanda_id=other['id']))
         c.execute("UPDATE demandas SET status = ? WHERE id = ?", (novo_status, demanda_id))
         c.commit()
 
-    log_audit("status_demanda", f"Demanda #{demanda_id} alterada para '{novo_status}'", session.get('username'))
+    log_audit("status_demanda", f"Demanda #{demanda_id}: status {row['status']} → {novo_status}", session.get('username'))
     flash(f"Status da demanda atualizado para {novo_status}.", "ok")
     return redirect(url_for("demandas_painel"))
 

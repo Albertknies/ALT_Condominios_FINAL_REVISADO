@@ -247,6 +247,10 @@
     </a>
   </section>
 
+  <section class="ops-day-panel"><div class="alt-panel-head"><h2>Rotina da administradora</h2><a class="btn-action" href="{{ url_for('demandas_painel') }}">Todas as demandas →</a></div>
+  <div class="ops-day-counts"><a href="{{ url_for('demandas_painel', prazo='hoje') }}">{{ icon('clock') }}<strong>{{ operation_counts.hoje }}</strong><span>Para hoje</span></a><a href="{{ url_for('demandas_painel', prazo='red') }}">{{ icon('triangle-alert') }}<strong>{{ operation_counts.atrasadas }}</strong><span>Em atraso</span></a><a href="{{ url_for('demandas_painel', status='aguardando') }}">{{ icon('users') }}<strong>{{ operation_counts.aguardando }}</strong><span>Aguardando retorno ou aprovação</span></a></div>
+  {% for task in operation_tasks %}<a class="ops-day-task" href="{{ url_for('editar_demanda', demanda_id=task.id) }}"><span>{{ icon('list-checks') }}</span><div><strong>{{ task.titulo }}</strong><small>{{ task.condominio }} · {{ task.responsavel or 'Responsável a definir' }}</small></div><span>{{ task.data_vencimento[8:10] }}/{{ task.data_vencimento[5:7] }}</span><span>›</span></a>{% else %}<p class="ops-day-empty">Nenhuma demanda em aberto para hoje ou em atraso. Confira os próximos prazos na lista de demandas.</p>{% endfor %}
+  </section>
   <section class="alt-overview-panels">
     <div class="alt-status-panel"><div class="alt-panel-head"><h2>Situação dos condomínios</h2><span>{{ total }} cadastros</span></div><p>Distribuição por situação dos prazos cadastrados</p>
       {% for label, key, color in [('Em dia','green','green'),('Próximos a vencer','yellow','yellow'),('Com vencimentos','red','red')] %}
@@ -259,7 +263,7 @@
       <div class="alt-carousel-slide" data-slide="0" id="criticalSlide" role="tabpanel" aria-labelledby="criticalTab">
         <div class="alt-panel-head"><h2>Vencimentos críticos</h2>{{ icon('clock') }}</div><p>Vencidos e próximos 30 dias, em ordem de urgência</p>
         {% for issue in critical_deadlines %}
-          <a class="alt-update-row alt-critical-row" href="{{ url_for('editar', cid=issue.condominio_id, item=issue.update_field, _anchor=issue.update_field) }}"><span class="alt-update-icon {{ issue.status }}">{{ icon('triangle-alert' if issue.status == 'red' else 'clock') }}</span><div><strong>{{ issue.label }}</strong><span>{{ issue.condominio }}</span><span class="alt-critical-date {{ issue.status }}">{{ issue.days_left_label }} · {{ issue.date[8:10] }}/{{ issue.date[5:7] }}/{{ issue.date[:4] }}</span></div><span>›</span></a>
+          <a class="alt-update-row alt-critical-row" href="{{ url_for('atualizar_prazo', cid=issue.condominio_id, field=issue.update_field) }}"><span class="alt-update-icon {{ issue.status }}">{{ icon('triangle-alert' if issue.status == 'red' else 'clock') }}</span><div><strong>{{ issue.label }}</strong><span>{{ issue.condominio }}</span><span class="alt-critical-date {{ issue.status }}">{{ issue.days_left_label }} · {{ issue.date[8:10] }}/{{ issue.date[5:7] }}/{{ issue.date[:4] }}</span></div><span>›</span></a>
         {% else %}<div class="alt-carousel-empty">{{ icon('circle-check') }}<strong>Nenhum vencimento crítico</strong><p>Não há prazos vencidos ou a vencer nos próximos 30 dias entre os itens cadastrados.</p></div>{% endfor %}
       </div>
       <div class="alt-carousel-slide" data-slide="1" id="updatesSlide" role="tabpanel" aria-labelledby="updatesTab" hidden>

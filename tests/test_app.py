@@ -102,6 +102,99 @@ class AppSmokeTests(unittest.TestCase):
         self.assertIsNone(row['condominio_id'])
         self.assertEqual(row['valor'], 100)
 
+    def _operation_fixture(self):
+        self.client.post('/login', data={'username': 'admin', 'password': 'admin'})
+        cid = save_condominio({'nome': 'Condomínio Rotina', 'dedData': '2020-01-01', 'obs': 'Preservar observações', 'custom': {'keep': True}})
+        self.client.get('/')
+        with self.client.session_transaction() as session:
+            token = session['csrf_token']
+        return cid, token
+
+    def test_quick_deadline_update_preserves_unrelated_data(self):
+        import json
+        cid, token = self._operation_fixture()
+        page = self.client.get(f'/condominios/{cid}/prazo/dedData')
+        self.assertEqual(page.status_code, 200)
+        with conn() as c:
+            version = c.execute('SELECT atualizado_em FROM condominios WHERE id=?', (cid,)).fetchone()[0]
+        response = self.client.post(f'/condominios/{cid}/prazo/dedData', data={'csrf_token': token, 'versao': version, 'data_servico': '2026-10-01', 'data_validade': '2027-06-01'})
+        self.assertEqual(response.status_code, 302)
+        with conn() as c:
+            data = json.loads(c.execute('SELECT dados_json FROM condominios WHERE id=?', (cid,)).fetchone()[0])
+        self.assertEqual(data['obs'], 'Preservar observações')
+        self.assertEqual(data['custom'], {'keep': True})
+        self.assertEqual(data['dedVenc'], '2027-06-01')
+        issue = next(x for x in get_condominio_alert_status(data)['issues'] if x['field'] == 'dedData')
+        self.assertEqual(issue['date'], '2027-06-01')
+
+    def test_quick_update_rejects_stale_invalid_or_unprotected_request(self):
+        cid, token = self._operation_fixture()
+        self.assertEqual(self.client.post(f'/condominios/{cid}/prazo/dedData', data={}).status_code, 400)
+        self.assertEqual(self.client.get(f'/condominios/{cid}/prazo/obs').status_code, 404)
+        with conn() as c:
+            version = c.execute('SELECT atualizado_em FROM condominios WHERE id=?', (cid,)).fetchone()[0]
+        invalid = self.client.post(f'/condominios/{cid}/prazo/dedData', data={'csrf_token': token, 'versao': version, 'data_servico': '2027-01-01', 'data_validade': '2026-01-01'})
+        self.assertIn('posterior', invalid.get_data(as_text=True))
+        stale = self.client.post(f'/condominios/{cid}/prazo/dedData', data={'csrf_token': token, 'versao': 'old', 'data_servico': '2026-01-01', 'data_validade': '2027-01-01'})
+        self.assertIn('outra pessoa', stale.get_data(as_text=True))
+        with conn() as c:
+            self.assertEqual(c.execute('SELECT atualizado_em FROM condominios WHERE id=?', (cid,)).fetchone()[0], version)
+
+    def test_explicit_validity_is_used_even_without_service_date(self):
+        issue = next(x for x in get_condominio_alert_status({'dedVenc': '2027-06-01'})['issues'] if x['field'] == 'dedData')
+        self.assertEqual(issue['date'], '2027-06-01')
+
+    def test_deadline_generates_prefilled_task_without_duplicates(self):
+        cid, token = self._operation_fixture()
+        page = self.client.get(f'/demandas?condominio={cid}&item=dedData')
+        self.assertIn('value="Dedetização"', page.get_data(as_text=True))
+        form = {'csrf_token': token, 'condominio_id': cid, 'origem_campo': 'dedData', 'titulo': 'Dedetização', 'categoria': 'Limpeza', 'prioridade': 'Urgente', 'data_vencimento': '2026-10-20', 'responsavel': 'admin', 'descricao': 'Solicitar orçamento'}
+        self.client.post('/demandas/salvar', data=form)
+        duplicate = self.client.post('/demandas/salvar', data=form)
+        self.assertIn('/editar', duplicate.headers['Location'])
+        with conn() as c:
+            rows = c.execute('SELECT * FROM demandas WHERE condominio_id=?', (cid,)).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['origem_campo'], 'dedData')
+        self.assertTrue(rows[0]['origem_data'])
+        quick = self.client.get(f'/condominios/{cid}/prazo/dedData')
+        self.assertIn('Acompanhar demanda', quick.get_data(as_text=True))
+        closed = self.client.post(f"/demandas/{rows[0]['id']}/status", data={'csrf_token': token, 'status': 'Concluída'})
+        self.assertEqual(closed.status_code, 302)
+        self.client.post('/demandas/salvar', data=form)
+        reopen = self.client.post(f"/demandas/{rows[0]['id']}/status", data={'csrf_token': token, 'status': 'Pendente'})
+        self.assertIn('/editar', reopen.headers['Location'])
+        with conn() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM demandas WHERE condominio_id=? AND status NOT IN ('Concluída','Cancelada')", (cid,)).fetchone()[0], 1)
+
+    def test_task_edit_and_waiting_filter(self):
+        cid, token = self._operation_fixture()
+        self.client.post('/demandas/salvar', data={'csrf_token': token, 'condominio_id': cid, 'titulo': 'Atendimento operacional', 'categoria': 'Administrativo', 'prioridade': 'Alta', 'data_vencimento': '2026-10-20', 'responsavel': 'admin'})
+        with conn() as c:
+            tid = c.execute('SELECT id FROM demandas WHERE condominio_id=?', (cid,)).fetchone()[0]
+        self.assertEqual(self.client.get(f'/demandas/{tid}/editar').status_code, 200)
+        response = self.client.post(f'/demandas/{tid}/editar', data={'csrf_token': token, 'titulo': 'Retorno do fornecedor', 'categoria': 'Administrativo', 'prioridade': 'Urgente', 'data_vencimento': '2026-10-22', 'responsavel': 'gabi', 'status': 'Aguardando retorno', 'descricao': 'Orçamento solicitado'})
+        self.assertEqual(response.status_code, 302)
+        waiting = self.client.get('/demandas?status=aguardando&responsavel=gabi').get_data(as_text=True)
+        self.assertIn('Retorno do fornecedor', waiting)
+        others = self.client.get('/demandas?responsavel=admin').get_data(as_text=True)
+        self.assertNotIn('Retorno do fornecedor', others)
+        with conn() as c:
+            self.assertEqual(c.execute('SELECT status FROM demandas WHERE id=?', (tid,)).fetchone()[0], 'Aguardando retorno')
+
+    def test_cancelled_tasks_are_not_overdue_or_in_today_work(self):
+        cid, token = self._operation_fixture()
+        with conn() as c:
+            c.execute("INSERT INTO demandas(condominio_id,titulo,data_vencimento,status) VALUES(?,?,?,?)", (cid, 'Tarefa cancelada única', '2020-01-01', 'Cancelada'))
+            c.commit()
+        active = self.client.get('/demandas').get_data(as_text=True)
+        self.assertNotIn('Tarefa cancelada única', active)
+        closed = self.client.get('/demandas?status=Cancelada').get_data(as_text=True)
+        self.assertIn('Tarefa cancelada única', closed)
+        self.assertNotIn('Vencida há', closed)
+        home = self.client.get('/').get_data(as_text=True)
+        self.assertNotIn('Tarefa cancelada única', home)
+
     def test_navigation_is_shared_across_authenticated_pages(self):
         create_user('albert', 'senha-segura', 'master', 'senha-segura')
         self.client.post('/login', data={'username': 'albert', 'password': 'senha-segura'})

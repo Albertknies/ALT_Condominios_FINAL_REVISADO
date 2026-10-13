@@ -1,0 +1,16 @@
+{% from '_icons.html' import icon %}
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ALT — Atualizar prazo</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='shell.css') }}"></head><body class="alt-app">
+{% set page_title = 'Atualização rápida' %}{% include '_navigation.html' %}
+<main><div class="page-head"><div><h1>{{ metadata.label }}</h1><p>{{ d.nome }}</p></div><a class="btn-action" href="{{ url_for('index') }}">Voltar ao painel</a></div>
+<div class="ops-focus-layout"><section class="ops-panel"><h2>Atualizar validade</h2><p>Altere somente este item. As demais informações do condomínio serão preservadas.</p>
+{% if issue %}<div class="ops-source-status">{{ icon('clock') }} {{ issue.days_left_label }} · {{ issue.date }}</div>{% endif %}
+{% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+<form method="post" class="ops-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="versao" value="{{ version }}">
+{% if metadata.due_field != field %}<label>Data do serviço / contratação<input type="date" name="data_servico" value="{{ request.form.get('data_servico', d.get(field, '')) }}"></label>{% endif %}
+<label>{{ 'Validade / fim do mandato' if metadata.due_field == field else 'Próximo vencimento' }}<input type="date" name="data_validade" required value="{{ request.form.get('data_validade', issue.date if issue else '') }}"></label>
+<div class="ops-actions"><button class="btn success" type="submit">Salvar validade</button><a class="btn ghost" href="{{ url_for('editar', cid=cid, item=field, _anchor=field) }}">Abrir ficha completa</a></div></form></section>
+<section class="ops-panel"><h2>Providenciar atendimento</h2><p>Organize quem vai cuidar deste item e até quando.</p>
+{% if task %}<div class="ops-source-status">{{ icon('list-checks') }} Já existe uma demanda em aberto para este item.</div><a class="btn success" href="{{ url_for('editar_demanda', demanda_id=task.id) }}">Acompanhar demanda</a>
+{% elif issue %}<div class="ops-source-status">{{ icon('users') }} Defina responsável, prioridade e prazo de acompanhamento.</div><a class="btn success" href="{{ url_for('demandas_painel', condominio=cid, item=field, _anchor='novaDemanda') }}">Criar demanda deste vencimento</a>
+{% else %}<p>Cadastre a validade para criar uma demanda vinculada.</p>{% endif %}
+<p class="ops-note">Concluir uma demanda registra o atendimento. Para renovar o alerta, atualize também a validade.</p></section></div></main><script src="{{ url_for('static', filename='shell.js') }}" defer></script></body></html>

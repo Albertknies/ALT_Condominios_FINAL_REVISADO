@@ -231,3 +231,42 @@ body.alt-app{--alt-sidebar-width:228px;background:#f1f2f4;color:#41414c}
 .alt-app .alt-kpi-link{display:block;text-decoration:none;color:inherit;cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .alt-app .alt-kpi-link:hover{border-color:#cdb8de;box-shadow:0 5px 15px #4f2c6810}
 .alt-app .alt-kpi-link:focus-visible{outline:3px solid #b68ece;outline-offset:4px}
+.alt-app .ops-focus-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.8fr);gap:20px;max-width:1100px}
+.alt-app .ops-panel{min-width:0;padding:24px;background:#fff;border:1px solid #e5e1eb;border-radius:12px;box-shadow:0 3px 8px #38204704}
+.alt-app .ops-panel>p{font-size:12px;color:#8c7c98;line-height:1.7;margin:8px 0 18px}
+.alt-app .ops-form{display:grid;gap:16px;margin-top:20px}
+.alt-app .ops-form label,.alt-app .ops-task-filters label{display:grid;gap:6px;font-size:12px;color:#796585}
+.alt-app .ops-form input,.alt-app .ops-form select,.alt-app .ops-form textarea,.alt-app .ops-task-filters input,.alt-app .ops-task-filters select{width:100%;border:1px solid #e3dce9;border-radius:8px;background:#fdfcfe;color:#655172;padding:10px 11px;min-width:0}
+.alt-app .ops-actions,.alt-app .ops-task-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.alt-app .ops-task-actions .alt-icon{width:15px;height:15px;display:inline-block;vertical-align:-3px}
+.alt-app .ops-source-status{display:flex;align-items:center;gap:9px;padding:13px;margin:20px 0;background:#f5f0fa;color:#8b699f;border-radius:8px;font-size:12px}
+.alt-app .ops-note{font-size:11px!important;color:#9b8aa7!important;margin-top:22px!important}
+.alt-app .ops-two-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.alt-app .ops-related-title{margin-top:26px}
+.alt-app .ops-task-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:10px;align-items:end;padding:15px;margin-bottom:22px;border:1px solid #eee7f3;border-radius:9px;background:#fbf9fd}
+.alt-app .ops-task-filters .btn-action{min-height:38px;text-align:center}
+.alt-app .demanda-title{text-decoration:none;color:#75508d;display:block}
+.alt-app .demanda-item{scroll-margin-top:24px;grid-template-columns:minmax(0,1fr)}
+.alt-app .demanda-item:target{outline:2px solid #d2bade;outline-offset:4px;border-radius:8px}
+.alt-app .tag.closed{background:#f0edf4;color:#9b8aa7}
+.alt-app .btn-report .alt-icon{width:16px;height:16px}
+@media(max-width:950px){.alt-app .ops-focus-layout{grid-template-columns:1fr}}
+@media(max-width:600px){.alt-app .ops-two-columns{grid-template-columns:1fr}.alt-app .ops-panel{padding:18px}.alt-app .ops-task-filters{grid-template-columns:1fr}.alt-app .ops-form input,.alt-app .ops-form select{font-size:16px}}
+.alt-app .ops-day-panel{background:#fff;border:1px solid #e6e1ec;border-radius:11px;padding:22px;margin-bottom:22px;min-width:0}
+.alt-app .ops-day-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 12px}
+.alt-app .ops-day-counts>a{display:flex;align-items:center;gap:10px;border:1px solid #eee8f3;border-radius:9px;padding:13px 15px;text-decoration:none;color:#8c739c;background:#fcfafe;min-width:0}
+.alt-app .ops-day-counts strong{font-size:20px;color:#79548f;font-weight:500}
+.alt-app .ops-day-counts span{font-size:11px;line-height:1.5}
+.alt-app .ops-day-counts .alt-icon{width:18px;height:18px}
+.alt-app .ops-day-task{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #efeaf4;text-decoration:none;color:#937fa1;font-size:11px}
+.alt-app .ops-day-task>div{flex:1;min-width:0}
+.alt-app .ops-day-task strong{display:block;font-size:12px;font-weight:500;color:#765687}
+.alt-app .ops-day-task small{display:block;margin-top:5px;font-size:10px;color:#a08bad}
+.alt-app .ops-day-task .alt-icon{width:17px;height:17px}
+.alt-app .ops-day-task:last-child{border-bottom:0}
+.alt-app .ops-day-empty{font-size:12px;color:#9c8aa8;margin:18px 0 0}
+@media(max-width:650px){.alt-app .ops-day-counts{grid-template-columns:1fr}.alt-app .ops-day-panel{padding:18px}}
+.alt-app .ops-history-item{padding:14px 0;border-bottom:1px solid #eee7f3;overflow-wrap:anywhere}
+.alt-app .ops-history-item strong{font-size:12px;font-weight:500;color:#805b95}
+.alt-app .ops-history-item small{display:block;font-size:10px;margin-top:4px;color:#a08bab}
+.alt-app .ops-history-item p{font-size:11px;line-height:1.7;color:#927e9f;margin:8px 0 0}

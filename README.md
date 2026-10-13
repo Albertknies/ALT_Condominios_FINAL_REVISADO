@@ -45,3 +45,17 @@ Prioridades ainda abertas:
 6. Verificar login, formulários e relatórios em celular e com PostgreSQL real antes de publicar.
 
 Esta revisão prepara correções para avaliação em uma branch; não publica uma nova versão do sistema.
+
+
+## Rotina operacional da administradora
+
+- O início apresenta tarefas para hoje, atrasadas e aguardando retorno/aprovação, com atalhos para o acompanhamento.
+- Vencimentos críticos abrem uma edição rápida do item, preservando os demais dados do cadastro. Datas de validade preenchidas explicitamente têm prioridade sobre o cálculo padrão.
+- A atualização rápida usa bloqueio transacional e confere a versão do cadastro para evitar salvar por cima de uma alteração simultânea.
+- Cada vencimento pode originar uma demanda com condomínio, responsável, prioridade e prazo. Se já existe uma demanda ativa para esse item, o sistema abre o acompanhamento existente.
+- Demandas podem ser editadas e filtradas por situação, prazo, condomínio, responsável e busca textual. O filtro inicial mostra somente tarefas em aberto.
+- Os estados Aguardando retorno e Aguardando aprovação ajudam a acompanhar dependências externas. Canceladas e concluídas não entram nos atrasos.
+- Concluir a demanda não renova a validade: o atendimento e a atualização do cadastro são ações distintas, com acesso direto entre elas.
+- A auditoria registra criação de tarefas, mudanças de prazo/responsável/status e atualização de validade.
+
+A atualização do banco acrescenta `origem_campo` e `origem_data` às demandas, além de um índice de consulta. Não remove registros existentes. O sistema não armazena documentos de condomínio e não envia notificações automáticas nesta versão.

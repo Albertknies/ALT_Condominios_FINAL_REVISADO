@@ -263,77 +263,64 @@
 
   <!-- KPIs de Demandas -->
   <section class="kpi-row kpi-three">
-    <div class="kpi-card alert-red">
+    <a class="kpi-card alert-red alt-kpi-link" href="{{ url_for('demandas_painel', prazo='red', _anchor='demandasLista') }}">
       <div class="kpi-header">
         <span>Vencidas</span>
         <span>{{ icon('triangle-alert') }}</span>
       </div>
       <div class="kpi-num" style="color: #dc2626;">{{ total_vencidas }}</div>
       <div class="kpi-sub">Exigem ação imediata</div>
-    </div>
+    </a>
 
-    <div class="kpi-card alert-yellow">
+    <a class="kpi-card alert-yellow alt-kpi-link" href="{{ url_for('demandas_painel', prazo='yellow', _anchor='demandasLista') }}">
       <div class="kpi-header">
         <span>Vencem em 7 dias</span>
         <span>{{ icon('clock') }}</span>
       </div>
       <div class="kpi-num" style="color: #d97706;">{{ total_proximas }}</div>
       <div class="kpi-sub">Atenção no cronograma</div>
-    </div>
+    </a>
 
-    <div class="kpi-card alert-green">
+    <a class="kpi-card alert-green alt-kpi-link" href="{{ url_for('demandas_painel', prazo='green', _anchor='demandasLista') }}">
       <div class="kpi-header">
         <span>No Prazo / Em Dia</span>
         <span>{{ icon('circle-check') }}</span>
       </div>
       <div class="kpi-num" style="color: #16a34a;">{{ total_em_dia }}</div>
       <div class="kpi-sub">Demandas com prazo seguro</div>
-    </div>
+    </a>
   </section>
 
   <div class="demandas-layout">
     <!-- Formulário Lateral -->
-    <section class="panel-card">
+    <section class="panel-card" id="novaDemanda">
       <h3 style="margin: 0 0 16px 0; color: var(--primary); font-size: 16px;">Nova Demanda</h3>
       <form method="post" action="{{ url_for('salvar_demanda') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="origem_campo" value="{{ prefill.get('origem_campo', '') }}">
         
         <div class="form-group">
           <label for="condominio_id">Condomínio *</label>
           <select id="condominio_id" name="condominio_id" required>
             <option value="">Selecione...</option>
             {% for cond in condominios %}
-            <option value="{{ cond.id }}">{{ cond.nome }}</option>
+            <option value="{{ cond.id }}" {% if prefill.get('condominio_id') == cond.id %}selected{% endif %}>{{ cond.nome }}</option>
             {% endfor %}
           </select>
         </div>
 
         <div class="form-group">
           <label for="titulo">Título da Demanda *</label>
-          <input type="text" id="titulo" name="titulo" placeholder="Ex: Manutenção da Bomba, Laudo PPCI" required>
+          <input type="text" id="titulo" name="titulo" value="{{ prefill.get('titulo', '') }}" placeholder="Ex: Manutenção da Bomba, Laudo PPCI" required>
         </div>
 
         <div class="form-group">
           <label for="categoria">Categoria</label>
-          <select id="categoria" name="categoria">
-            <option value="Manutenção">Manutenção</option>
-            <option value="Administrativo">Administrativo</option>
-            <option value="Segurança/PPCI">Segurança/PPCI</option>
-            <option value="Assembleia">Assembleia</option>
-            <option value="Jurídico">Jurídico</option>
-            <option value="Financeiro">Financeiro</option>
-            <option value="Geral" selected>Geral</option>
-          </select>
+          <select id="categoria" name="categoria">{% for category in categories %}<option {% if prefill.get('categoria', 'Geral') == category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select>
         </div>
 
         <div class="form-group">
           <label for="prioridade">Prioridade</label>
-          <select id="prioridade" name="prioridade">
-            <option value="Baixa">Baixa</option>
-            <option value="Média" selected>Média</option>
-            <option value="Alta">Alta</option>
-            <option value="Crítica">Crítica</option>
-          </select>
+          <select id="prioridade" name="prioridade">{% for priority in priorities %}<option {% if prefill.get('prioridade', 'Média') == priority %}selected{% endif %}>{{ priority }}</option>{% endfor %}</select>
         </div>
 
         <div class="form-group">
@@ -343,12 +330,12 @@
 
         <div class="form-group">
           <label for="responsavel">Responsável / Executante</label>
-          <input type="text" id="responsavel" name="responsavel" placeholder="Ex: Síndico, Prestador, ALT">
+          <input type="text" id="responsavel" name="responsavel" value="{{ prefill.get('responsavel', '') }}" placeholder="Ex: Síndico, Prestador, ALT">
         </div>
 
         <div class="form-group">
           <label for="descricao">Detalhes / Observações</label>
-          <textarea id="descricao" name="descricao" rows="3" placeholder="Informações complementares..."></textarea>
+          <textarea id="descricao" name="descricao" rows="3" placeholder="Informações complementares...">{{ prefill.get('descricao', '') }}</textarea>
         </div>
 
         <button type="submit" class="btn-submit">Salvar Demanda</button>
@@ -356,31 +343,29 @@
     </section>
 
     <!-- Lista de Demandas -->
-    <section class="panel-card">
+    <section class="panel-card" id="demandasLista">
       <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px;">
         <h3 style="margin: 0; color: #1e293b; font-size: 16px;">Lista de Demandas</h3>
 
         <div class="list-header-actions">
           <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">
-            {{ demandas|length }} cadastrada(s)
+            {{ demandas|length }} exibida(s) · {{ all_count }} cadastrada(s)
           </span>
 
-          <a href="/demandas/relatorio"
-             target="_blank"
-             rel="noopener"
-             class="btn-report"
-             aria-label="Gerar relatório PDF das demandas"
-             title="Gerar relatório PDF das demandas">
-            <span aria-hidden="true">📄</span>
-            Gerar relatório PDF
-          </a>
+<a class="btn-report" href="{{ url_for('demandas_painel', responsavel=current_user().username) }}">{{ icon('user-round') }} Minhas demandas</a>
         </div>
       </div>
 
+      <form method="get" class="ops-task-filters">
+<label>Buscar<input name="busca" value="{{ query }}" placeholder="Título, condomínio ou responsável"></label>
+<label>Situação<select name="status"><option value="ativos" {% if selected_status == 'ativos' %}selected{% endif %}>Em aberto</option><option value="aguardando" {% if selected_status == 'aguardando' %}selected{% endif %}>Aguardando retorno / aprovação</option><option value="todos" {% if selected_status == 'todos' %}selected{% endif %}>Todas</option>{% for status in statuses %}<option {% if selected_status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></label>
+<label>Prazo<select name="prazo"><option value="">Todos os prazos</option><option value="hoje" {% if selected_prazo == 'hoje' %}selected{% endif %}>Para hoje</option><option value="red" {% if selected_prazo == 'red' %}selected{% endif %}>Vencidas</option><option value="yellow" {% if selected_prazo == 'yellow' %}selected{% endif %}>Até 7 dias</option><option value="green" {% if selected_prazo == 'green' %}selected{% endif %}>No prazo</option></select></label>
+<label>Condomínio<select name="condominio"><option value="">Todos</option>{% for cond in condominios %}<option value="{{ cond.id }}" {% if selected_condominio == cond.id %}selected{% endif %}>{{ cond.nome }}</option>{% endfor %}</select></label>
+<label>Responsável<input name="responsavel" value="{{ selected_responsavel }}" placeholder="Login ou nome exato"></label><button type="submit" class="btn-action">Filtrar</button><a class="btn-action" href="{{ url_for('demandas_painel') }}">Limpar</a></form>
       {% for d in demandas %}
-      <div class="demanda-item">
+      <div class="demanda-item" id="demanda-{{ d.id }}">
         <div>
-          <div class="demanda-title {{ 'is-done' if d.status == 'Concluída' else '' }}">{{ d.titulo }}</div>
+          <a class="demanda-title {{ 'is-done' if d.status == 'Concluída' else '' }}" href="{{ url_for('editar_demanda', demanda_id=d.id) }}">{{ d.titulo }}</a>
           <div class="demanda-condo">{{ d.condominio_nome }}</div>
           
           <div class="demanda-tags">
@@ -398,8 +383,8 @@
           {% endif %}
         </div>
 
-        <div style="display: flex; gap: 8px; align-items: center;">
-          {% if d.status != 'Concluída' %}
+        <div class="ops-task-actions"><a class="btn-action" href="{{ url_for('editar_demanda', demanda_id=d.id) }}">{{ icon('list-checks') }} Acompanhar</a>
+          {% if d.status not in ['Concluída', 'Cancelada'] %}
           <form method="post" action="{{ url_for('atualizar_status_demanda', demanda_id=d.id) }}" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="status" value="Concluída">
@@ -421,7 +406,7 @@
       </div>
       {% else %}
       <div style="text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: 14px;">
-        Nenhuma demanda cadastrada no momento. Use o formulário ao lado para começar.
+        Nenhuma demanda corresponde aos filtros. Limpe os filtros ou registre uma nova demanda.
       </div>
       {% endfor %}
     </section>
