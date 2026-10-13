@@ -166,3 +166,29 @@ body.alt-app{--alt-sidebar-width:228px;background:#f1f2f4;color:#41414c}
 .alt-app .alt-status-line{margin-top:28px}
 .alt-app .alt-panel-head h2{font-size:18px;color:#6f5b7e}
 @media(max-width:900px){.alt-app.alt-menu-compact .sidebar .brand-logo{margin:23px 23px 22px}.alt-app.alt-menu-compact .sidebar .brand-logo img{width:142px}}
+/* Carteiras em lista, com hierarquia e ações alinhadas. */
+.alt-app .grid-wallets{display:flex;flex-direction:column;gap:10px}
+.alt-app .wallet-card{display:grid;grid-template-columns:42px minmax(0,1fr) minmax(110px,.3fr) auto;align-items:center;column-gap:16px;padding:18px 20px;border:1px solid #e5e1eb;border-radius:10px;box-shadow:0 2px 5px #30203d04}
+.alt-app .wallet-person-icon{width:40px;height:40px;background:#f3eef9;border-radius:10px;color:#9a7eb0;display:grid;place-items:center}
+.alt-app .wallet-header{align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px 14px}
+.alt-app .wallet-title{font-size:14px;font-weight:500;border:0;padding:0;line-height:1.5;overflow-wrap:anywhere}
+.alt-app .wallet-meta{margin:0;font-size:11px;line-height:1.7}
+.alt-app .wallet-meta strong{color:#7f5b95;font-weight:600}
+.alt-app .badge-tipo{font-size:9px;text-transform:none;font-weight:500;padding:4px 8px;white-space:nowrap;line-height:1.6}
+.alt-app .wallet-action-row{margin:0;padding:0;border:0;justify-content:flex-end;gap:10px}
+.alt-app .expand-indicator{display:flex;align-items:center;gap:6px;border:0;background:transparent;padding:8px 6px;color:#8b719c;font-size:11px;white-space:nowrap;cursor:pointer}
+.alt-app .wallet-card .expand-indicator::after{content:none!important}
+.alt-app .expand-indicator .alt-icon{width:15px;height:15px;transition:transform .18s}
+.alt-app .wallet-card.active .expand-indicator .alt-icon{transform:rotate(180deg)}
+.alt-app .wallet-card .btn-action{display:inline-flex;align-items:center;gap:6px;font-size:11px;white-space:nowrap;font-weight:500;color:#765389;padding:8px 10px}
+.alt-app .wallet-card .btn-action .alt-icon{width:15px;height:15px}
+.alt-app .wallet-card .condominios-container{grid-column:2/-1;margin-top:17px;padding-top:7px}
+.alt-app .wallet-card.active .condominios-container{display:block}
+.alt-app .condominio-row{padding:13px 0}
+.alt-app .condominio-name{font-size:12px;font-weight:500;color:#65516f}
+.alt-app .condominio-sub{display:flex;align-items:center;gap:6px;font-size:11px;margin-top:5px;color:#8f829a}
+.alt-app .condominio-sub .alt-icon{width:13px;height:13px}
+.alt-app .wallet-empty{padding:24px;text-align:center;color:#8a7a95;background:#fff;border:1px dashed #e4dcea;border-radius:10px}
+.alt-app .search-wrap>.alt-icon{width:18px;height:18px;color:#9d88ac;flex-shrink:0}
+@media(max-width:1150px){.alt-app .wallet-card{grid-template-columns:40px minmax(0,1fr) auto}.alt-app .wallet-meta{grid-column:2;grid-row:2;margin-top:5px}.alt-app .wallet-action-row{grid-column:3;grid-row:1/3}.alt-app .wallet-header{flex-direction:column;align-items:flex-start}}
+@media(max-width:650px){.alt-app .wallet-card{grid-template-columns:36px minmax(0,1fr);gap:10px 12px;padding:16px}.alt-app .wallet-person-icon{width:36px;height:36px}.alt-app .wallet-action-row{grid-column:2;grid-row:3;justify-content:flex-start;flex-wrap:wrap;margin-top:4px}.alt-app .wallet-card .condominios-container{grid-column:1/-1}.alt-app .wallet-meta{grid-column:2}.alt-app .wallet-title{font-size:13px}}

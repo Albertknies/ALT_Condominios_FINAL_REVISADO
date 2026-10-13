@@ -1,3 +1,4 @@
+{% from '_icons.html' import icon %}
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -240,7 +241,7 @@
     <div class="kpi-card">
       <div class="kpi-header">
         <span>Total de Condomínios</span>
-        <span>🏢</span>
+        <span>{{ icon('building-2') }}</span>
       </div>
       <div class="kpi-num">{{ total }}</div>
       <div class="kpi-sub">Imóveis cadastrados no sistema</div>
@@ -249,7 +250,7 @@
     <div class="kpi-card purple">
       <div class="kpi-header">
         <span>Carteiras Profissionais</span>
-        <span>👔</span>
+        <span>{{ icon('briefcase-business') }}</span>
       </div>
       <div class="kpi-num" style="color: #6d28d9;">{{ total_profissionais }}</div>
       <div class="kpi-sub">Gestões sob responsabilidade técnica</div>
@@ -258,7 +259,7 @@
     <div class="kpi-card green">
       <div class="kpi-header">
         <span>Síndicos Moradores</span>
-        <span>👤</span>
+        <span>{{ icon('user-round') }}</span>
       </div>
       <div class="kpi-num" style="color: #10b981;">{{ moradores|length if moradores else 0 }}</div>
       <div class="kpi-sub">Gestão interna de moradores</div>
@@ -268,11 +269,11 @@
   <!-- Filtro e Busca -->
   <section class="controls-card">
     <div class="search-wrap">
-      <span>🔍</span>
-      <input id="searchWallet" type="text" placeholder="Buscar por responsável, síndico ou condomínio..." autocomplete="off">
+      <span>{{ icon('search') }}</span>
+      <input aria-label="Buscar carteiras" id="searchWallet" type="text" placeholder="Buscar por responsável, síndico ou condomínio..." autocomplete="off">
     </div>
     <div>
-      <select id="tipoWallet" class="filter-select">
+      <select aria-label="Filtrar tipo de carteira" id="tipoWallet" class="filter-select">
         <option value="todos">Todos os tipos de carteira</option>
         <option value="Carteira profissional">Carteira Profissional</option>
         <option value="Carteira morador">Carteira Morador</option>
@@ -286,6 +287,7 @@
       {% for wallet in wallets %}
         {% set tipo_badge = 'profissional' if 'profissional' in wallet.tipo|lower else 'morador' if 'morador' in wallet.tipo|lower else 'semtipo' %}
         <article class="wallet-card" data-search="{{ wallet.search }}" data-tipo="{{ wallet.tipo }}" data-open="false">
+          <span class="wallet-person-icon">{{ icon('briefcase-business' if tipo_badge == 'profissional' else 'user-round') }}</span>
           <div class="wallet-header">
             <h2 class="wallet-title">{{ wallet.sindico }}</h2>
             <span class="badge-tipo {{ tipo_badge }}">{{ wallet.tipo }}</span>
@@ -296,19 +298,19 @@
           </div>
 
           <div class="wallet-action-row">
-            <span class="expand-indicator">Ver condomínios</span>
-            <a class="btn-action" href="{{ url_for('pdf_wallet', responsavel=wallet.sindico, tipo=wallet.tipo) }}" target="_blank">PDF Carteira</a>
+            <button type="button" class="expand-indicator" aria-expanded="false" aria-controls="wallet-details-{{ loop.index }}">Ver condomínios {{ icon('chevron-down') }}</button>
+            <a class="btn-action" href="{{ url_for('pdf_wallet', responsavel=wallet.sindico, tipo=wallet.tipo) }}" target="_blank" rel="noopener">{{ icon('file-text') }} PDF Carteira</a>
           </div>
 
-          <div class="condominios-container">
+          <div class="condominios-container" id="wallet-details-{{ loop.index }}">
             {% for c in wallet.condominios %}
               <div class="condominio-row">
                 <div class="condominio-name">{{ c.nome }}</div>
-                {% if c.empresa %}<div class="condominio-sub">🏢 {{ c.empresa }}</div>{% endif %}
-                {% if c.telefone %}<div class="condominio-sub">📞 {{ c.telefone }}</div>{% endif %}
+                {% if c.empresa %}<div class="condominio-sub">{{ icon('building-2') }} {{ c.empresa }}</div>{% endif %}
+                {% if c.telefone %}<div class="condominio-sub">{{ icon('phone') }} {{ c.telefone }}</div>{% endif %}
                 <div style="margin-top: 6px; display: flex; gap: 6px;">
-                  <a class="btn-action" href="{{ url_for('editar', cid=c.id) }}">Abrir Ficha</a>
-                  <a class="btn-action" href="{{ url_for('pdf', cid=c.id) }}" target="_blank">PDF</a>
+                  <a class="btn-action" href="{{ url_for('editar', cid=c.id) }}">{{ icon('file-text') }} Abrir ficha</a>
+                  <a class="btn-action" href="{{ url_for('pdf', cid=c.id) }}" target="_blank" rel="noopener">{{ icon('download') }} PDF</a>
                 </div>
               </div>
             {% endfor %}
@@ -321,6 +323,7 @@
       Nenhuma carteira encontrada. Cadastre condomínios com síndicos para gerar os grupos.
     </div>
   {% endif %}
+<p id="walletEmpty" class="wallet-empty" role="status" hidden>Nenhuma carteira corresponde à busca.</p>
 </main>
 
 <script>
@@ -332,23 +335,32 @@ function applyFilters() {
   const text = (searchInput?.value || '').trim().toLowerCase();
   const tipo = tipoSelect?.value || 'todos';
 
+  let visible = 0;
   cards.forEach((card) => {
     const search = (card.dataset.search || '').toLowerCase();
     const matchesText = !text || search.includes(text);
     const matchesTipo = tipo === 'todos' || card.dataset.tipo === tipo;
-    card.style.display = (matchesText && matchesTipo) ? '' : 'none';
+    const show = matchesText && matchesTipo;
+    visible += show ? 1 : 0;
+    card.style.display = show ? '' : 'none';
   });
+  document.getElementById('walletEmpty').hidden = visible > 0 || cards.length === 0;
 }
 
 searchInput?.addEventListener('input', applyFilters);
 tipoSelect?.addEventListener('change', applyFilters);
 
-document.querySelectorAll('.wallet-card').forEach((card) => {
-  card.addEventListener('click', (event) => {
-    if (event.target.closest('a, button')) return;
-    const isOpen = card.dataset.open === 'true';
-    card.dataset.open = isOpen ? 'false' : 'true';
-    card.classList.toggle('active', !isOpen);
+cards.forEach(card => {
+  const button = card.querySelector('.expand-indicator');
+  const toggle = () => {
+    const open = card.dataset.open !== 'true';
+    card.dataset.open = String(open);
+    card.classList.toggle('active', open);
+    button.setAttribute('aria-expanded', String(open));
+  };
+  button.addEventListener('click', toggle);
+  card.addEventListener('click', event => {
+    if (!event.target.closest('a, button, input, select')) toggle();
   });
 });
 </script>
