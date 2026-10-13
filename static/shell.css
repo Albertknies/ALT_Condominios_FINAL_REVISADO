@@ -228,3 +228,6 @@ body.alt-app{--alt-sidebar-width:228px;background:#f1f2f4;color:#41414c}
 .alt-app .alt-carousel-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .alt-app .alt-deadline-focus{scroll-margin-top:24px;outline:2px solid #cbb6dc;outline-offset:5px;border-radius:10px}
 .alt-app .alt-deadline-notice{width:100%;grid-column:1/-1;margin:0 0 14px;padding:10px 13px;background:#f3edf9;color:#876599;border:1px solid #e6d9ef;border-radius:7px;font-size:12px}
+.alt-app .alt-kpi-link{display:block;text-decoration:none;color:inherit;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.alt-app .alt-kpi-link:hover{border-color:#cdb8de;box-shadow:0 5px 15px #4f2c6810}
+.alt-app .alt-kpi-link:focus-visible{outline:3px solid #b68ece;outline-offset:4px}

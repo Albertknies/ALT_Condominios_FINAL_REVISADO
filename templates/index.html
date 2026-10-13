@@ -210,41 +210,41 @@
 
   <!-- Métricas Unificadas (KPIs) -->
   <section class="kpi-row">
-    <div class="kpi-card">
+    <a class="kpi-card alt-kpi-link" href="?status=all#condominios" data-overview-status="all">
       <div class="kpi-header">
         <span>Condomínios</span>
         <span>{{ icon('building-2') }}</span>
       </div>
       <div class="kpi-num">{{ total }}</div>
       <div class="kpi-sub">{{ profissionais }} sind. profissional · {{ moradores }} morador</div>
-    </div>
+    </a>
 
-    <div class="kpi-card alert-red">
+    <a class="kpi-card alert-red alt-kpi-link" href="?status=red#condominios" data-overview-status="red">
       <div class="kpi-header">
         <span>Condomínios vencidos</span>
         <span>{{ icon('triangle-alert') }}</span>
       </div>
       <div class="kpi-num" style="color: #dc2626;">{{ alert_summary.red }}</div>
       <div class="kpi-sub">Com pelo menos um prazo vencido</div>
-    </div>
+    </a>
 
-    <div class="kpi-card alert-yellow">
+    <a class="kpi-card alert-yellow alt-kpi-link" href="?status=yellow#condominios" data-overview-status="yellow">
       <div class="kpi-header">
         <span>Próximos a vencer</span>
         <span>{{ icon('clock') }}</span>
       </div>
       <div class="kpi-num" style="color: #d97706;">{{ alert_summary.yellow }}</div>
       <div class="kpi-sub">Condomínios com prazo em até 30 dias</div>
-    </div>
+    </a>
 
-    <div class="kpi-card alert-green">
+    <a class="kpi-card alert-green alt-kpi-link" href="?status=green#condominios" data-overview-status="green">
       <div class="kpi-header">
         <span>Em Dia</span>
         <span>{{ icon('circle-check') }}</span>
       </div>
       <div class="kpi-num" style="color: #16a34a;">{{ alert_summary.green }}</div>
       <div class="kpi-sub">Sem pendências críticas</div>
-    </div>
+    </a>
   </section>
 
   <section class="alt-overview-panels">
@@ -348,15 +348,32 @@
     document.getElementById('noResults').hidden = visible > 0 || cards.length === 0;
   }
 
-  filterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      filterBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      filterBtns.forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
-      activeFilter = btn.dataset.filter;
-      applyFilters();
+  function selectFilter(status, scroll = false, clearSearch = false) {
+    if (!['all', 'red', 'yellow', 'green'].includes(status)) status = 'all';
+    activeFilter = status;
+    if (clearSearch) searchInput.value = '';
+    filterBtns.forEach(button => {
+      const selected = button.dataset.filter === status;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+    applyFilters();
+    const url = new URL(window.location.href);
+    if (status === 'all') url.searchParams.delete('status');
+    else url.searchParams.set('status', status);
+    if (scroll) url.hash = 'condominios';
+    window.history.replaceState(null, '', url);
+    if (scroll) document.getElementById('condominios').scrollIntoView({ behavior: 'instant', block: 'start' });
+  }
+  filterBtns.forEach(button => button.addEventListener('click', () => selectFilter(button.dataset.filter)));
+  document.querySelectorAll('[data-overview-status]').forEach(link => {
+    link.addEventListener('click', event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      selectFilter(link.dataset.overviewStatus, true, true);
     });
   });
+  selectFilter(new URLSearchParams(window.location.search).get('status') || 'all');
 
   searchInput.addEventListener('input', applyFilters);
 </script>
