@@ -1,3 +1,4 @@
+{% from '_icons.html' import icon %}
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -202,7 +203,7 @@
 
 <main>
 <div class="page-heading"><div><span class="eyebrow">SEU CONDOMÍNIO, NOSSO COMPROMISSO</span><h1>Visão geral</h1><p>Acompanhe seus condomínios e os próximos vencimentos em um só lugar.</p></div><a class="primary-button" href="{{ url_for('novo') }}">＋ Novo condomínio</a></div>
-<section class="quick-panel"><div><h2>Sua rotina, mais organizada</h2><p>Acesse rapidamente as principais áreas da gestão.</p></div><div class="quick-actions"><a href="{{ url_for('demandas_painel') }}">Demandas e tarefas <span>→</span></a><a href="{{ url_for('carteiras') }}">Equipe e carteiras <span>→</span></a>{% if user.role in ['admin','financeiro','master'] %}<a href="{{ url_for('financeiro') }}">Painel financeiro <span>→</span></a>{% endif %}</div></section>
+
   {% with messages=get_flashed_messages(with_categories=true) %}
     {% for cat,msg in messages %}<div class="flash {{ cat }}" style="margin-bottom: 16px;">{{ msg }}</div>{% endfor %}
   {% endwith %}
@@ -212,7 +213,7 @@
     <div class="kpi-card">
       <div class="kpi-header">
         <span>Condomínios</span>
-        <span>🏢</span>
+        <span>{{ icon('building-2') }}</span>
       </div>
       <div class="kpi-num">{{ total }}</div>
       <div class="kpi-sub">{{ profissionais }} sind. profissional · {{ moradores }} morador</div>
@@ -221,7 +222,7 @@
     <div class="kpi-card alert-red">
       <div class="kpi-header">
         <span>Condomínios vencidos</span>
-        <span>⚠️</span>
+        <span>{{ icon('triangle-alert') }}</span>
       </div>
       <div class="kpi-num" style="color: #dc2626;">{{ alert_summary.red }}</div>
       <div class="kpi-sub">Com pelo menos um prazo vencido</div>
@@ -230,7 +231,7 @@
     <div class="kpi-card alert-yellow">
       <div class="kpi-header">
         <span>Próximos a vencer</span>
-        <span>⏰</span>
+        <span>{{ icon('clock') }}</span>
       </div>
       <div class="kpi-num" style="color: #d97706;">{{ alert_summary.yellow }}</div>
       <div class="kpi-sub">Condomínios com prazo em até 30 dias</div>
@@ -239,18 +240,31 @@
     <div class="kpi-card alert-green">
       <div class="kpi-header">
         <span>Em Dia</span>
-        <span>✅</span>
+        <span>{{ icon('circle-check') }}</span>
       </div>
       <div class="kpi-num" style="color: #16a34a;">{{ alert_summary.green }}</div>
       <div class="kpi-sub">Sem pendências críticas</div>
     </div>
   </section>
 
+  <section class="alt-overview-panels">
+    <div class="alt-status-panel"><div class="alt-panel-head"><h2>Situação dos condomínios</h2><span>{{ total }} cadastros</span></div><p>Distribuição por situação dos prazos cadastrados</p>
+      {% for label, key, color in [('Em dia','green','green'),('Próximos a vencer','yellow','yellow'),('Com vencimentos','red','red')] %}
+      <div class="alt-status-line"><div><span class="alt-status-dot {{ color }}"></span><span>{{ label }}</span><strong>{{ alert_summary[key] }}</strong></div><div class="alt-status-track"><div class="{{ color }}" style="width:{{ (alert_summary[key] / total * 100) if total else 0 }}%"></div></div></div>
+      {% endfor %}
+      <div class="alt-panel-foot"><a href="{{ url_for('demandas_painel') }}">Acompanhar demandas →</a><a href="{{ url_for('carteiras') }}">Equipe e carteiras →</a></div>
+    </div>
+    <div class="alt-updates-panel"><div class="alt-panel-head"><h2>Últimas atualizações</h2>{{ icon('history') }}</div><p>Cadastros atualizados recentemente</p>
+    {% for item in (items|sort(attribute='atualizado_em', reverse=true))[:4] %}
+      <a class="alt-update-row" href="{{ url_for('editar', cid=item.id) }}"><span class="alt-update-icon">{{ icon('building-2') }}</span><div><strong>{{ item.nome }}</strong><span>{{ item.atualizado_em[:10] }} · Ficha cadastral</span></div><span>›</span></a>
+    {% else %}<p class="alt-panel-empty">As atualizações aparecerão após o primeiro cadastro.</p>{% endfor %}
+    </div>
+  </section>
   <div class="section-heading" id="condominios"><div><h2>Seus condomínios</h2><p>Consulte fichas e acompanhe a situação dos documentos.</p></div><a class="btn-action" href="{{ url_for('relatorio', tipo='vencidos') }}">Relatório de vencidos ↓</a></div>
   <!-- Filtro e Busca Integrados -->
   <section class="controls-card">
     <div class="search-wrap">
-      <span>🔍</span>
+      <span>{{ icon('search') }}</span>
       <input aria-label="Buscar condomínios" id="searchInput" type="text" placeholder="Buscar por condomínio, síndico ou responsável..." autocomplete="off">
     </div>
     <div class="filter-tabs">

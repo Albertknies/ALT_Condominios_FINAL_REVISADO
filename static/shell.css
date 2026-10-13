@@ -109,3 +109,48 @@ body.alt-app{--alt-sidebar-width:228px;background:#f1f2f4;color:#41414c}
 @media print{.alt-app .alt-collapse{display:none!important}}
 .alt-app .side-link .alt-nav-label{width:auto;flex:1;text-align:left;font-size:12px;color:inherit;line-height:1.5}
 .alt-app .alt-menu-backdrop{color:transparent}
+/* Refinamento: navegação de traço fino e painel de acompanhamento. */
+.alt-app .alt-icon{display:block;flex-shrink:0;width:21px;height:21px}
+.alt-app .side-link>span:first-child{display:flex;align-items:center;justify-content:center}
+.alt-app .side-link{padding:13px 11px;gap:13px}
+.alt-app .alt-nav-search>span{top:10px;left:10px}
+.alt-app .alt-nav-search .alt-icon{width:16px;height:16px}
+.alt-app .brand-logo{padding:0 35px;margin:23px 19px 13px}
+.alt-app .sidebar-caption{margin-bottom:15px;letter-spacing:1.5px}
+.alt-app .page-heading .eyebrow{display:none}
+.alt-app .page-heading{margin-bottom:32px}
+.alt-app .kpi-row{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:15px;margin-bottom:24px}
+.alt-app .kpi-card{position:relative;min-height:113px;padding:17px 15px 14px 76px;display:block}
+.alt-app .kpi-header{font-size:11px;display:block}
+.alt-app .kpi-header>span:last-child{position:absolute;left:14px;top:-14px;width:48px;height:53px;border:1px solid #ddd9e5;border-radius:8px;background:#fff;box-shadow:0 3px 8px #35204408}
+.alt-app .kpi-header .alt-icon{width:27px;height:27px}
+.alt-app .kpi-num{margin-top:9px;font-size:26px}
+.alt-app .kpi-sub{font-size:10px;line-height:1.6;margin-top:3px}
+.alt-app .alt-overview-panels{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;margin-bottom:28px}
+.alt-app .alt-status-panel,.alt-app .alt-updates-panel{background:#fff;border:1px solid #e5e5eb;border-radius:10px;box-shadow:0 2px 6px #25213706;padding:22px;min-width:0}
+.alt-app .alt-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.alt-app .alt-panel-head>span{font-size:10px;color:#94839f}
+.alt-app .alt-panel-head>.alt-icon{color:#a594b2;width:18px;height:18px}
+.alt-app .alt-overview-panels p{font-size:11px;margin-top:5px;color:#91869a}
+.alt-app .alt-status-line{margin-top:24px}
+.alt-app .alt-status-line>div:first-child{display:flex;align-items:center;gap:9px;color:#776882;font-size:12px;margin-bottom:9px}
+.alt-app .alt-status-line strong{margin-left:auto;font-weight:500;color:#655172}
+.alt-app .alt-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.alt-app .alt-status-track{height:7px;border-radius:10px;background:#f5f2f8;overflow:hidden}
+.alt-app .alt-status-track>div{height:100%;border-radius:10px}
+.alt-app .alt-status-dot.green,.alt-app .alt-status-track>.green{background:#98c6b1}
+.alt-app .alt-status-dot.yellow,.alt-app .alt-status-track>.yellow{background:#e3c992}
+.alt-app .alt-status-dot.red,.alt-app .alt-status-track>.red{background:#d7a3ad}
+.alt-app .alt-panel-foot{display:flex;gap:18px;flex-wrap:wrap;border-top:1px solid #efebf3;margin-top:26px;padding-top:17px}
+.alt-app .alt-panel-foot a{font-size:11px;color:#88649f;text-decoration:none}
+.alt-app .alt-update-row{display:flex;align-items:center;gap:12px;padding:17px 0;border-bottom:1px solid #eeebf2;text-decoration:none;color:#73627e}
+.alt-app .alt-update-row:last-child{border-bottom:0;padding-bottom:0}
+.alt-app .alt-update-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#f3eef9;color:#a082bc;flex-shrink:0}
+.alt-app .alt-update-icon .alt-icon{width:17px;height:17px}
+.alt-app .alt-update-row>div{min-width:0;flex:1}
+.alt-app .alt-update-row strong{display:block;font-size:12px;font-weight:500;overflow-wrap:anywhere}
+.alt-app .alt-update-row div>span{display:block;font-size:10px;margin-top:5px;color:#9a8aa5}
+.alt-app .alt-panel-empty{padding:28px 0}
+.alt-app .section-heading h2{font-size:17px}
+@media(max-width:1250px){.alt-app .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 14px}.alt-app .alt-overview-panels{grid-template-columns:1fr}}
+@media(max-width:600px){.alt-app .kpi-card{padding:48px 13px 14px;min-height:155px}.alt-app .kpi-header>span:last-child{left:13px;top:-12px}.alt-app .alt-status-panel,.alt-app .alt-updates-panel{padding:18px}.alt-app .page-heading{margin-bottom:32px}.alt-app .kpi-sub{font-size:11px}}
