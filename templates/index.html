@@ -254,10 +254,22 @@
       {% endfor %}
       <div class="alt-panel-foot"><a href="{{ url_for('demandas_painel') }}">Acompanhar demandas →</a><a href="{{ url_for('carteiras') }}">Equipe e carteiras →</a></div>
     </div>
-    <div class="alt-updates-panel"><div class="alt-panel-head"><h2>Últimas atualizações</h2>{{ icon('history') }}</div><p>Cadastros atualizados recentemente</p>
-    {% for item in (items|sort(attribute='atualizado_em', reverse=true))[:4] %}
-      <a class="alt-update-row" href="{{ url_for('editar', cid=item.id) }}"><span class="alt-update-icon">{{ icon('building-2') }}</span><div><strong>{{ item.nome }}</strong><span>{{ item.atualizado_em[:10] }} · Ficha cadastral</span></div><span>›</span></a>
-    {% else %}<p class="alt-panel-empty">As atualizações aparecerão após o primeiro cadastro.</p>{% endfor %}
+    <div class="alt-updates-panel alt-priority-carousel" id="priorityCarousel" aria-label="Vencimentos e atualizações">
+      <div class="alt-carousel-top"><div><span class="alt-carousel-eyebrow">ACOMPANHAMENTO</span></div><div class="alt-carousel-arrows"><button type="button" data-slide-step="-1" aria-label="Mostrar painel anterior">‹</button><button type="button" data-slide-step="1" aria-label="Mostrar próximo painel">›</button></div></div>
+      <div class="alt-carousel-slide" data-slide="0" id="criticalSlide" role="tabpanel" aria-labelledby="criticalTab">
+        <div class="alt-panel-head"><h2>Vencimentos críticos</h2>{{ icon('clock') }}</div><p>Vencidos e próximos 30 dias, em ordem de urgência</p>
+        {% for issue in critical_deadlines %}
+          <a class="alt-update-row alt-critical-row" href="{{ url_for('editar', cid=issue.condominio_id) }}"><span class="alt-update-icon {{ issue.status }}">{{ icon('triangle-alert' if issue.status == 'red' else 'clock') }}</span><div><strong>{{ issue.label }}</strong><span>{{ issue.condominio }}</span><span class="alt-critical-date {{ issue.status }}">{{ issue.days_left_label }} · {{ issue.date[8:10] }}/{{ issue.date[5:7] }}/{{ issue.date[:4] }}</span></div><span>›</span></a>
+        {% else %}<div class="alt-carousel-empty">{{ icon('circle-check') }}<strong>Nenhum vencimento crítico</strong><p>Não há prazos vencidos ou a vencer nos próximos 30 dias entre os itens cadastrados.</p></div>{% endfor %}
+      </div>
+      <div class="alt-carousel-slide" data-slide="1" id="updatesSlide" role="tabpanel" aria-labelledby="updatesTab" hidden>
+        <div class="alt-panel-head"><h2>Últimas atualizações</h2>{{ icon('history') }}</div><p>Cadastros atualizados recentemente</p>
+        {% for item in (items|sort(attribute='atualizado_em', reverse=true))[:4] %}
+          <a class="alt-update-row" href="{{ url_for('editar', cid=item.id) }}"><span class="alt-update-icon">{{ icon('building-2') }}</span><div><strong>{{ item.nome }}</strong><span>{{ item.atualizado_em[8:10] }}/{{ item.atualizado_em[5:7] }}/{{ item.atualizado_em[:4] }} · Ficha cadastral</span></div><span>›</span></a>
+        {% else %}<p class="alt-panel-empty">As atualizações aparecerão após o primeiro cadastro.</p>{% endfor %}
+      </div>
+      <div class="alt-carousel-tabs" role="tablist" aria-label="Escolher acompanhamento"><button type="button" id="criticalTab" role="tab" aria-controls="criticalSlide" aria-selected="true" data-slide-index="0">Vencimentos</button><button type="button" id="updatesTab" role="tab" aria-controls="updatesSlide" aria-selected="false" data-slide-index="1">Atualizações</button></div>
+      <span class="alt-carousel-announcement" aria-live="polite" id="carouselStatus"></span>
     </div>
   </section>
   <div class="section-heading" id="condominios"><div><h2>Seus condomínios</h2><p>Consulte fichas e acompanhe a situação dos documentos.</p></div><a class="btn-action" href="{{ url_for('relatorio', tipo='vencidos') }}">Relatório de vencidos ↓</a></div>
@@ -349,5 +361,6 @@
   searchInput.addEventListener('input', applyFilters);
 </script>
 <script src="{{ url_for('static', filename='shell.js') }}" defer></script>
+<script src="{{ url_for('static', filename='priority-carousel.js') }}" defer></script>
 </body>
 </html>

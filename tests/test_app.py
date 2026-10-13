@@ -11,6 +11,21 @@ from app import app, conn, create_user, init_db, save_condominio, authenticate_u
 
 
 class InputAndPostgresTests(unittest.TestCase):
+    def test_critical_deadlines_prioritize_overdue_and_limit_results(self):
+        from app import get_critical_deadlines
+        items = [{'id': 1, 'nome': 'Condomínio A', 'issues': [
+            {'label': 'Seguro', 'status': 'yellow', 'days_left': 25},
+            {'label': 'PPCI', 'status': 'red', 'days_left': -10},
+            {'label': 'Extintores', 'status': 'yellow', 'days_left': 3},
+            {'label': 'Mandato', 'status': 'green', 'days_left': 120},
+            {'label': 'Água', 'status': 'red', 'days_left': 0},
+            {'label': 'Dedetização', 'status': 'yellow', 'days_left': 15},
+        ]}]
+        critical = get_critical_deadlines(items)
+        self.assertEqual([issue['days_left'] for issue in critical], [-10, 0, 3, 15])
+        self.assertTrue(all(issue['condominio_id'] == 1 for issue in critical))
+        self.assertEqual(get_critical_deadlines([]), [])
+
     def test_monetary_formats(self):
         for raw in ('R$ 1.234,56', '1234,56', '1234.56'):
             with self.subTest(raw=raw):

@@ -206,3 +206,23 @@ body.alt-app{--alt-sidebar-width:228px;background:#f1f2f4;color:#41414c}
 .alt-app .kpi-card.alert-green .kpi-header>span:last-child{color:#7da693;background:#fafffc}
 @media(max-width:1200px){.alt-app .kpi-row.kpi-three{gap:14px}.alt-app .kpi-three .kpi-card{padding-left:73px;padding-right:14px}.alt-app .kpi-three .kpi-header>span:last-child{left:13px;width:46px;height:50px}.alt-app .kpi-three .kpi-header{font-size:11px}}
 @media(max-width:650px){.alt-app .kpi-row.kpi-three{grid-template-columns:1fr;gap:20px}.alt-app .kpi-three .kpi-card{min-height:114px;padding:17px 18px 15px 82px}.alt-app .kpi-three .kpi-header>span:last-child{left:16px;top:17px;width:48px;height:48px}.alt-app .kpi-three .kpi-header{font-size:12px}.alt-app .kpi-three .kpi-num{font-size:25px;margin-top:6px}.alt-app .kpi-three .kpi-sub{margin-top:4px}.alt-app .kpi-row:not(.kpi-three) .kpi-card{padding:49px 13px 14px}}
+.alt-app .alt-priority-carousel{display:flex;flex-direction:column;min-height:370px}
+.alt-app .alt-carousel-top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:13px}
+.alt-app .alt-carousel-eyebrow{font-size:9px;letter-spacing:1.3px;color:#a294ad}
+.alt-app .alt-carousel-arrows{display:flex;gap:7px}
+.alt-app .alt-carousel-arrows button{display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid #e6deed;border-radius:50%;background:#fff;color:#9a7baf;font-size:20px;line-height:1;cursor:pointer}
+.alt-app .alt-carousel-arrows button:hover{background:#f3edf9}
+.alt-app .alt-carousel-slide{flex:1;min-width:0}
+.alt-app .alt-carousel-slide[hidden]{display:none!important}
+.alt-app .alt-critical-row{padding:13px 0}
+.alt-app .alt-update-icon.red{background:#fbf0f2;color:#ba8b97}
+.alt-app .alt-update-icon.yellow{background:#fbf6e9;color:#b29b67}
+.alt-app .alt-critical-date.red{color:#b46e7e}
+.alt-app .alt-critical-date.yellow{color:#a58d58}
+.alt-app .alt-carousel-tabs{display:flex;gap:6px;margin-top:18px;padding-top:14px;border-top:1px solid #eeebf3}
+.alt-app .alt-carousel-tabs button{flex:1;background:transparent;border:0;padding:8px 10px;border-radius:7px;color:#9d8aa8;font-size:11px;cursor:pointer}
+.alt-app .alt-carousel-tabs button[aria-selected=true]{background:#f2ebf9;color:#805d99}
+.alt-app .alt-carousel-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 16px;color:#8b7898}
+.alt-app .alt-carousel-empty>.alt-icon{width:30px;height:30px;color:#91b3a3;margin-bottom:14px}
+.alt-app .alt-carousel-empty strong{font-size:13px;font-weight:500}
+.alt-app .alt-carousel-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}

@@ -1488,6 +1488,16 @@ def importar():
     return render_template("importar.html")
 
 
+def get_critical_deadlines(items, limit=4):
+    deadlines = []
+    for item in items:
+        for issue in item['issues']:
+            if issue['status'] in {'red', 'yellow'}:
+                deadlines.append({**issue, 'condominio_id': item['id'], 'condominio': item['nome']})
+    deadlines.sort(key=lambda issue: (issue['days_left'], issue['condominio'].casefold(), issue['label']))
+    return deadlines[:limit]
+
+
 @app.route("/")
 @app.route("/home")
 @app.route("/inicio")
@@ -1548,6 +1558,7 @@ def index():
         moradores=moradores,
         sem_sindico=max(0, total - profissionais - moradores),
         alert_summary=summary,
+        critical_deadlines=get_critical_deadlines(items),
     )
 
 
