@@ -154,3 +154,15 @@ body.alt-app{--alt-sidebar-width:228px;background:#f1f2f4;color:#41414c}
 .alt-app .section-heading h2{font-size:17px}
 @media(max-width:1250px){.alt-app .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 14px}.alt-app .alt-overview-panels{grid-template-columns:1fr}}
 @media(max-width:600px){.alt-app .kpi-card{padding:48px 13px 14px;min-height:155px}.alt-app .kpi-header>span:last-child{left:13px;top:-12px}.alt-app .alt-status-panel,.alt-app .alt-updates-panel{padding:18px}.alt-app .page-heading{margin-bottom:32px}.alt-app .kpi-sub{font-size:11px}}
+/* Marca solta, sem placa ou fundo, em alta definição. */
+.alt-app .sidebar .brand-logo{display:flex;justify-content:center;align-items:center;padding:0;margin:23px 23px 22px;background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+.alt-app .sidebar .brand-logo img{display:block;width:142px;height:auto;max-height:none;background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;object-fit:contain;image-rendering:auto}
+.alt-app.alt-menu-compact .sidebar .brand-logo{margin:20px 7px 15px;padding:0}
+.alt-app.alt-menu-compact .sidebar .brand-logo img{width:56px;height:auto;max-height:none}
+.alt-app .workspace-header{box-shadow:0 2px 6px #27213a05;border-radius:10px}
+.alt-app .sidebar{background:#fafafb}
+.alt-app .kpi-card{background:#fff}
+.alt-app .alt-status-panel,.alt-app .alt-updates-panel{padding:24px;border-color:#e5e5ea}
+.alt-app .alt-status-line{margin-top:28px}
+.alt-app .alt-panel-head h2{font-size:18px;color:#6f5b7e}
+@media(max-width:900px){.alt-app.alt-menu-compact .sidebar .brand-logo{margin:23px 23px 22px}.alt-app.alt-menu-compact .sidebar .brand-logo img{width:142px}}
