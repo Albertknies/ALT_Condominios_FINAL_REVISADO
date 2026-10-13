@@ -3,8 +3,43 @@ import tempfile
 import unittest
 from pathlib import Path
 import shutil
+from unittest.mock import MagicMock
+
+from app import PostgresConnection, parse_monetary
 
 from app import app, conn, create_user, init_db, save_condominio, authenticate_user, get_condominio_alert_status, build_report_rows, get_finance_summary
+
+
+class InputAndPostgresTests(unittest.TestCase):
+    def test_monetary_formats(self):
+        for raw in ('R$ 1.234,56', '1234,56', '1234.56'):
+            with self.subTest(raw=raw):
+                self.assertEqual(parse_monetary(raw), 1234.56)
+
+    def test_invalid_amounts_are_validation_errors(self):
+        for raw in ('NaN', 'sNaN', 'Infinity', '-Infinity', '1e999', '0.001', '0', '-1', 'abc'):
+            with self.subTest(raw=raw):
+                with self.assertRaises(ValueError):
+                    parse_monetary(raw)
+
+    def test_postgres_bulk_insert_uses_cursor(self):
+        connection = MagicMock()
+        cursor = connection.cursor.return_value.__enter__.return_value
+        rows = [('Internet', 350), ('Energia', 250)]
+        PostgresConnection(connection).executemany(
+            'INSERT INTO despesas(nome, valor) VALUES(?, ?)', rows)
+        cursor.executemany.assert_called_once_with(
+            'INSERT INTO despesas(nome, valor) VALUES(%s, %s)', rows)
+        connection.executemany.assert_not_called()
+        connection.cursor.return_value.__exit__.assert_called_once()
+
+    def test_postgres_bulk_insert_propagates_failure(self):
+        connection = MagicMock()
+        cursor = connection.cursor.return_value.__enter__.return_value
+        cursor.executemany.side_effect = RuntimeError('insert failed')
+        with self.assertRaises(RuntimeError):
+            PostgresConnection(connection).executemany('INSERT INTO t VALUES(?)', [(1,)])
+        connection.commit.assert_not_called()
 
 
 class AppSmokeTests(unittest.TestCase):
@@ -28,6 +63,18 @@ class AppSmokeTests(unittest.TestCase):
     def tearDown(self):
         app.config.pop('DATABASE', None)
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_financial_schema_upgrade_is_idempotent(self):
+        from app import ensure_finance_schema
+        with conn() as c:
+            c.execute("INSERT INTO financeiro_despesas(nome, valor, vencimento, mes_referencia) VALUES(?,?,?,?)", ('Internet', 100, '2026-09-10', '2026-09'))
+            c.commit()
+        ensure_finance_schema()
+        ensure_finance_schema()
+        with conn() as c:
+            row = c.execute('SELECT condominio_id, valor FROM financeiro_despesas').fetchone()
+        self.assertIsNone(row['condominio_id'])
+        self.assertEqual(row['valor'], 100)
 
     def test_root_page_redirects_to_login_when_not_authenticated(self):
         response = self.client.get('/')
@@ -364,8 +411,10 @@ class AppSmokeTests(unittest.TestCase):
         response = self.client.get('/')
         content = response.get_data(as_text=True)
 
-        self.assertIn('data-filter-status', content)
-        self.assertIn('filter-pill', content)
+        self.assertIn('data-filter="red"', content)
+        self.assertIn('data-filter="yellow"', content)
+        self.assertIn('data-filter="green"', content)
+        self.assertIn('filter-btn', content)
         self.assertIn('alert-red', content)
         self.assertIn('alert-yellow', content)
         self.assertIn('alert-green', content)
